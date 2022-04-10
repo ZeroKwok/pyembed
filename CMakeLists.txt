@@ -10,13 +10,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG          ${CMAKE_CURRENT_SOURCE_DIR}/bin)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE        ${CMAKE_CURRENT_SOURCE_DIR}/bin)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_CURRENT_SOURCE_DIR}/bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG          ${CMAKE_CURRENT_SOURCE_DIR}/bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE        ${CMAKE_CURRENT_SOURCE_DIR}/bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_CURRENT_SOURCE_DIR}/bin)
-
 if(MSVC AND PYMEBED_STATIC_RUNTIME)
     foreach(flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
         string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
@@ -33,7 +26,7 @@ add_compile_definitions(BOOST_PYTHON_STATIC_LIB=1)
 add_compile_definitions(AUTO_LINK_LIB_DIAGNOSTIC=1)
 
 #find_package(nlog REQUIRED)
-#find_package(utility REQUIRED)
+find_package(utility REQUIRED)
 find_package(Boost REQUIRED filesystem)
 find_package(Python3 REQUIRED COMPONENTS Development)
 
@@ -43,8 +36,8 @@ message(Python3_LIBRARY_DIRS " ${Python3_LIBRARY_DIRS}")
 message(Python3_LIBRARIES " ${Python3_LIBRARIES}")
 message(Python3_Development_FOUND " ${Python3_Development_FOUND}")
 
-#include_directories(${utility_INCLUDE_DIRS})
-#link_directories   (${utility_LIBRARY_DIRS})
+include_directories(${utility_INCLUDE_DIRS})
+link_directories   (${utility_LIBRARY_DIRS})
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories   (${Boost_LIBRARY_DIRS})
 
@@ -79,7 +72,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>)
 set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${INCLUDE_FILES}")
 
-#include(internal_util)
+include(internal_util)
 
 install(EXPORT ${PROJECT_NAME} FILE ${PROJECT_NAME}Config.cmake DESTINATION cmake)
 install(TARGETS ${PROJECT_NAME}
@@ -92,8 +85,8 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE DESTINATION ./ OPTIONAL)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/README.md DESTINATION ./ OPTIONAL)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/example DESTINATION ./)
 
-#install_pdb(${PROJECT_NAME})
+install_pdb(${PROJECT_NAME})
 
 if(PYMEBED_BUILD_EXAMPLE)
-    add_subdirectory(example)
+    add_subdirectory(examples)
 endif()
