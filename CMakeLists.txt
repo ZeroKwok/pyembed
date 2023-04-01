@@ -55,7 +55,8 @@ add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${INCLUDE_FILES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${Python3_INCLUDE_DIRS})
 target_link_directories(${PROJECT_NAME} PUBLIC ${Python3_LIBRARY_DIRS})
 
-# 不能连接CMake目标, 否则将导致: Assertion failed: !PyErr_Occurred(), file D:\a\1\s\Objects\typeobject.c, line 3129
+# 不能连接CMake目标, 否则将导致: 
+#   Assertion failed: !PyErr_Occurred(), file D:\a\1\s\Objects\typeobject.c, line 3129
 #target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python)
 
 set(CMAKE_MODULE_PATH "${utility_SOURCE_DIR}/cmake")
