@@ -100,7 +100,7 @@ int main(int argc, char** argv)
             "    def hello(self):                \n"
             "        return 'Hello from Python!' \n");
 
-        auto PythonDerived = get_pymebed().global()["PythonDerived"];
+        auto PythonDerived = get_pymebed().local()["PythonDerived"];
 
         // Creating and using instances of the C++ class is as easy as always.
         CppDerived cpp;
@@ -120,22 +120,15 @@ int main(int argc, char** argv)
                 try
                 {
                     f();
-
-                    // 没有异常返回false
-                    return false;
+                    return false; // 没有异常返回false
                 }
-                catch (const std::runtime_error& e)
+                catch (const std::runtime_error& e) 
                 {
-                    // 转换为Python错误
+                    // 仅拦截感兴趣的异常，并转换为Python错误，其他异常将在异常处理器链上处理
+                    // 如果没有注册其他异常处理的话，最顶层的异常处理器是:
+                    // 
+                    // boost\python\errors.hpp: handle_exception_impl()
                     PyErr_SetString(PyExc_RuntimeError, e.what());
-                }
-                catch (boost::python::error_already_set)
-                {
-                    // The python error reporting has already been handled.
-                }
-                catch (...)
-                {
-                    PyErr_SetString(PyExc_RuntimeError, "unidentifiable C++ exception");
                 }
 
                 return true;
@@ -161,8 +154,8 @@ int main(int argc, char** argv)
         // Run a python script in an empty environment.
         auto result = get_pymebed().exec_file(script);
 
-        // Extract an object the script stored in the global dictionary.
-        BOOST_TEST(python::extract<int>(get_pymebed().global()["number"]) == 42);
+        // Extract an object the script stored in the local dictionary.
+        BOOST_TEST(python::extract<int>(get_pymebed().local()["number"]) == 42);
     }
 
     // exec_test_error

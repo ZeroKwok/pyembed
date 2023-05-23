@@ -1,107 +1,156 @@
+// This file is part of the pymebed distribution.
+// Copyright (c) 2018-2023 Zero Kwok.
+// 
+// This is free software; you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as
+// published by the Free Software Foundation; either version 3 of
+// the License, or (at your option) any later version.
+// 
+// This software is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// Lesser General Public License for more details.
+// 
+// You should have received a copy of the GNU Lesser General Public
+// License along with this software; 
+// If not, see <http://www.gnu.org/licenses/>.
+//
+// Author:  Zero Kwok
+// Contact: zero.kwok@foxmail.com 
+// 
+
 #ifndef pymebed_h__
 #define pymebed_h__
+
+// export interface
+#ifdef PYMEBED_SHARED_LIB
+#    define PYMEBED_LIB __declspec(dllexport)
+#else
+#    ifdef PYMEBED_STATIC_LIB
+#        define PYMEBED_LIB
+#    else
+#        define PYMEBED_LIB __declspec(dllimport)
+#    endif // PYMEBED_BUILD_STATIC_LIB
+#endif // PYMEBED_BUILD_SHARED_LIB
+
 
 #include <filesystem>
 #include <boost/python.hpp>
 #include <boost/serialization/singleton.hpp>
 
 //!
-//! 嵌入Python解释器的包装类
+//! 嵌入式Python解释器
 //! 
-class pymebed : public 
-    boost::serialization::singleton<pymebed>
+class pymebed
 {
+    template <typename T>
+    friend T& get_pymebed();
     friend class pymebed_private;
     class pymebed_private* __private;
+
+protected:
+    PYMEBED_LIB explicit pymebed(const std::type_info& type);
+    PYMEBED_LIB static   pymebed* get_ptr();
+
 public:
-    pymebed();
-    virtual ~pymebed();
+    PYMEBED_LIB virtual ~pymebed();
 
     pymebed(const pymebed&) = delete;
     pymebed& operator=(const pymebed&) = delete;
 
-    //! @brief 初始化Python解释器
-    //! @param pyhome 默认的“home”目录，即标准Python库的位置。
-    //! @param initsigs 是否注册信号处理器
-    //! @note 初始化失败是致命错误, 将终止程序
-    void init(const std::filesystem::path& pyhome = "", bool initsigs = true);
+    //! @brief 初始化解释器
+    //! @param pyhome 指定Python的家目录，即标准Python库的位置，参考：Py_SetPythonHome()。
+    //! @param initsigs 指定是否注册信号处理器，当作为嵌入解释器时，可能不希望执行绪被 Ctrl+C 中断。
+    //! @note 该方法没有返回值，初始化失败是致命错误，将立即终止程序!
+    PYMEBED_LIB void init(const std::filesystem::path& pyhome = "", bool initsigs = true);
 
-    //! @brief 模拟发送SIGINT信号到Python
-    //! @note Python解释器如果没有注册信号处理器则无法被SIGINT信号中断.
-    void interrupt();
+    //! @brief 模拟发送SIGINT信号到解释器。
+    //! @note 解释器如果没有注册信号处理器则无法被SIGINT信号中断。
+    PYMEBED_LIB void interrupt();
 
-    //! @brief 添加Python初始化时导入解释器的内建模块
+    //! @brief 添加初始化时导入解释器的内建模块
     //! @param name 模块名
-    //! @param initfunc 模块初始化函数, 形式为: PyInit_{name}.
-    //! @return 成功返回true, 否则false.
-    //! note 必须在init()前调用
-    bool append_inittab(
+    //! @param initfunc 模块初始化函数，形式为: PyInit_{name}。
+    //! @return 成功返回true，否则false。
+    //! note 该方法应该在init()前调用。
+    PYMEBED_LIB bool append_inittab(
         const char* name,
         PyObject* (*initfunc)(void));
     
-    struct pymoudle
-    {
+    struct pymoudle {
         const char* name;
         PyObject* (*initfunc)(void);
     };
 
-    //! @brief 添加Python初始化时导入解释器的内建模块
+    //! @brief 添加初始化时导入解释器的内建模块
     //! @param pymoudles 模块列表
-    //! @return 成功返回true, 否则false.
-    //! note 必须在init()前调用
-    bool append_inittab(const std::vector<pymoudle>& pymoudles);
+    //! @return 成功返回true，否则false。
+    //! note 该方法应该在init()前调用。
+    PYMEBED_LIB bool append_inittab(const std::vector<pymoudle>& pymoudles);
 
-    //! @brief 注册扩展模块的异常处理器, 提供该接口的目的主要用于暴露
-    //!        boost::python::detail::register_exception_handler().
-    //! @param handler 异常处理函数, 它接收一个闭包, 并返回一个bool值, 其表示是否处理了异常.
-    //! @note 该处理函数将被解释器一直持有直到解释器被释放.
-    void register_exception_handler(
+    //! @brief 注册扩展模块的异常处理器，提供该接口的目的主要用于暴露。
+    //!        boost::python::detail::register_exception_handler()。
+    //! @param handler 异常处理函数，它接收一个闭包，并返回一个bool值，其表示是否处理了异常。
+    //! @note 1. 该处理函数将被解释器一直持有直到解释器被释放。
+    //!       2. 可以注册多个异常处理器，boost.python在内部维护了一个异常处理链表，当Python调用C++的相关代码时，
+    //!          会将异常处理链表在调用栈中展开，即最后注册的处理器最先捕获异常，没有捕获的将依次向上展开。
+    //!          伪代码表示为：fristHandler(secondHandler(thirdHandler(f())));
+    PYMEBED_LIB void register_exception_handler(
         const std::function<bool(std::function<void()>)>& handler);
 
     //! @brief 计算给定表达式的值并返回结果值
     //! @param expression Python 表达式
-    //! @param pyerr 用于捕获Python错误信息的回调, 若该参数无效则通过write_stderr处理.
     //! @return 返回计算结果值
-    boost::python::object eval(
-        const std::string& expression,
-        const std::function<void(std::string)>& pyerr = {});
+    PYMEBED_LIB boost::python::object eval(const std::string& expression);
 
-    //! @brief 执行给定的代码(通常是一组语句)并返回结果
+    //! @brief 执行给定的代码（通常是一组表达式）并返回结果
     //! @param command Python 代码
-    //! @param pyerr 用于捕获Python错误信息的回调, 若该参数无效则通过write_stderr处理.
     //! @return 返回计算结果值
-    boost::python::object exec(
-        const std::string& command,
-        const std::function<void(std::string)>& pyerr = {});
+    PYMEBED_LIB boost::python::object exec(const std::string& command);
 
     //! @brief 执行包含在给定文件中的代码并返回结果
     //! @param script 文件名
     //! @param args 执行参数
-    //! @param pyerr 用于捕获Python错误信息的回调, 若该参数无效则通过write_stderr处理.
     //! @return 返回计算结果值
-    boost::python::object exec_file(
+    PYMEBED_LIB boost::python::object exec_file(
         const std::filesystem::path& script,
-        const std::vector<std::string>& args = {},
-        const std::function<void(std::string)>& pyerr = {});
+        const std::vector<std::string>& args = {});
 
-    //! @brief 返回一个包含解释器当前全局上下文的字典
-    //! @return
-    boost::python::dict& global();
+    //! @brief 获得解释器的全局或局部上下文
+    //! @return 返回全局上下文的字典对象
+    PYMEBED_LIB boost::python::dict& global();
+    PYMEBED_LIB boost::python::dict& local();
 
-    //! @brief 分别是stdin, stdout, stderr 的重定向实现.
-    //! @param bytes
-    //! @param size
-    virtual std::string readline_stdin(int size = -1);
-    virtual void write_stdout(const std::string& bytes);
-    virtual void write_stderr(const std::string& bytes);
+    //! @brief 清除解释器状态
+    //! @note 
+    PYMEBED_LIB void clean();
+
+    //! @brief sys.stdin.readline()的重定向接口
+    //! @param size 要输入的字节数
+    //! @note pymebed默认不会启动重定向机制，除非通过子类化并重写虚函数。
+    PYMEBED_LIB virtual std::string readline_stdin(int size = -1);
+
+    //! @brief sys.stdout.write()的重定向接口
+    //! @param str 输出的内容，utf-8编码
+    //! @note pymebed默认不会启动重定向机制，除非通过子类化并重写虚函数。
+    PYMEBED_LIB virtual void write_stdout(const std::string& str);
+
+    //! @brief sys.stderr.write()的重定向接口
+    //! @param size 要输入的字节数
+    //! @note pymebed默认不会启动重定向机制，除非通过子类化并重写虚函数。
+    PYMEBED_LIB virtual void write_stderr(const std::string& str);
 };
 
-//! @brief 用于获得pymebed实例的便捷函数
-//! @tparam T
-//! @return
+//!
+//! 用于获得pymebed实例的便捷函数
+//! 注意：
+//!     线程不安全，应当在进入多线程之前获取实例
+//!
 template<class T = pymebed>
 T& get_pymebed() {
-    return T::get_mutable_instance();
+    if (T::get_ptr() == nullptr)
+        new T(typeid(T));
+    return static_cast<T&>(*T::get_ptr());
 }
 
 #endif // pymebed_h__

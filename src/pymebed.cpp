@@ -1,54 +1,78 @@
+// This file is part of the pymebed distribution.
+// Copyright (c) 2018-2023 Zero Kwok.
+// 
+// This is free software; you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as
+// published by the Free Software Foundation; either version 3 of
+// the License, or (at your option) any later version.
+// 
+// This software is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// Lesser General Public License for more details.
+// 
+// You should have received a copy of the GNU Lesser General Public
+// License along with this software; 
+// If not, see <http://www.gnu.org/licenses/>.
+//
+// Author:  Zero Kwok
+// Contact: zero.kwok@foxmail.com 
+// 
+
 #include "pymebed.h"
+#include "utility/utility.hpp"
+
 #include <assert.h>
 #include <signal.h>
 #include <iostream>
 #include <strstream>
 #include <functional>
 #include <boost/format.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/algorithm/string.hpp>
-#include <string/string_conv.h>
-#include <string/string_conv_easy.hpp>
 
-namespace python = boost::python;
+namespace bp = boost::python;
 
-enum direction_type {
+enum pipe_type 
+{
     pystdin,
     pystdout,
     pystderr
 };
 
-template<direction_type>
-class py_redirector
+template<pipe_type>
+class PYMEBED_LIB py_redirector
 {
 public:
     py_redirector()
     { }
 
     py_redirector(std::function<void(const std::string&)> f)
-        : m_write_fn(f)
+        : m_fwrite(f)
     { }
 
     py_redirector(std::function<std::string(int size)> f)
-        : m_readline_fn(f)
+        : m_freadline(f)
     { }
 
-    void write(const std::string& text)
+    void write(const std::string& str)
     {
-        if (m_write_fn)
-            m_write_fn(text);
+        if (m_fwrite)
+            m_fwrite(str);
     }
 
     std::string readline(int size = -1)
     {
-        if (m_readline_fn)
-            return m_readline_fn(size);
+        if (m_freadline)
+            return m_freadline(size);
         else
             return "";
     }
 
 public:
-    std::function<void(const std::string&)> m_write_fn;
-    std::function<std::string(int size)>    m_readline_fn;
+    std::function<void(const std::string&)> m_fwrite;
+    std::function<std::string(int size)>    m_freadline;
 };
 
 typedef py_redirector<pystdin>  stdin_redirector;
@@ -59,27 +83,41 @@ typedef py_redirector<pystderr> stderr_redirector;
 
 class pymebed_private 
 {
-    pymebed* __public;
 public:
     pymebed_private(pymebed* p)
-        : __public(p)
-    {}
-
-    void exec_some(
-        const std::function<void()>& f,
-        const std::function<void(std::string)>& pyerr)
     {
+        _public = p;
+
+        _stdin = boost::make_shared<stdin_redirector>(
+            [&](int size) -> std::string {
+                return _public->readline_stdin(size);
+            });
+
+        _stdout = boost::make_shared<stdout_redirector>(
+            [&](const std::string& str) {
+                _public->write_stdout(str);
+            });
+
+        _stderr = boost::make_shared<stderr_redirector>(
+            [&](const std::string& str) {
+                _public->write_stderr(str);
+            });
+    }
+
+    ~pymebed_private()
+    {
+        _stdin.reset();
+        _stdout.reset();
+        _stderr.reset();
+
+        _public = nullptr;
+    }
+
+    void exec_for(const std::function<void()>& f)
+    {
+#if 0
         if (boost::python::handle_exception(f))
         {
-            auto fncopy = _stderr->m_write_fn;
-            auto stream = std::make_shared<std::ostringstream>();
-            if (pyerr)
-            {
-                _stderr->m_write_fn = [&](const std::string& text) {
-                    *stream << text;
-                };
-            }
-
             if (PyErr_Occurred())
             {
                 PyErr_Print();
@@ -89,16 +127,39 @@ public:
                 auto msg =
                     "A C++ exception was thrown for which "
                     "there was no exception handler registered.\n";
-                if (pyerr)
-                    pyerr(msg);
-                else
-                    std::cerr << msg;
+                std::cerr << msg;
             }
-
-            if (pyerr)
+        }
+#endif
+        //PyBaseExceptionObject
+        //PyObject_GetIter();
+        //PyString_Check();
+        //PyBaseException_Check
+        try 
+        {
+            f();
+        }
+        catch (const bp::error_already_set&)
+        {
+            if (1)
             {
-                pyerr(stream->str());
-                std::swap(_stderr->m_write_fn, fncopy);
+                // https://docs.python.org/zh-cn/3.6/c-api/exceptions.html#c.PyErr_Fetch
+                // 将清除错误指示器
+                PyObject* exc_type, * exc_value, * exc_traceback;
+                PyErr_Fetch(&exc_type, &exc_value, &exc_traceback);
+                PyErr_NormalizeException(&exc_type, &exc_value, &exc_traceback);
+
+                bp::object type(bp::handle<>(bp::allow_null(exc_type)));
+                bp::object value(bp::handle<>(bp::allow_null(exc_value)));
+                bp::object traceback(bp::handle<>(bp::allow_null(exc_traceback)));
+
+                std::string strtype0 = bp::extract<std::string>(type) BOOST_EXTRACT_WORKAROUND;
+                std::string strtype1 = bp::extract<std::string>(value) BOOST_EXTRACT_WORKAROUND;
+                std::string strtype2 = bp::extract<std::string>(traceback) BOOST_EXTRACT_WORKAROUND;
+            }
+            else
+            {
+                PyErr_Print();
             }
         }
     }
@@ -111,30 +172,34 @@ public:
         signal(signum, &pymebed_private::signal_handler);
     }
 
-    static pymebed_private* get_instance() {
-        return get_pymebed().__private;
-    }
-
 public:
-    bool           _initsigs;
-    python::object _main_module;
-    python::dict   _main_global;
-
-    std::shared_ptr<stdin_redirector>  _stdin;
-    std::shared_ptr<stdout_redirector> _stdout;
-    std::shared_ptr<stderr_redirector> _stderr;
+    bool           _initsigs;   // 是否初始化信号处理器
+    bool           _redirect;   // 是否重定向标准流
+    bp::object _main_module;
+    bp::dict   _global;
+    bp::dict   _local;
+    
+    static pymebed* _public;
+    static boost::shared_ptr<stdin_redirector>  _stdin;
+    static boost::shared_ptr<stdout_redirector> _stdout;
+    static boost::shared_ptr<stderr_redirector> _stderr;
 };
+
+pymebed* pymebed_private::_public = nullptr;
+boost::shared_ptr<stdin_redirector>  pymebed_private::_stdin;
+boost::shared_ptr<stdout_redirector> pymebed_private::_stdout;
+boost::shared_ptr<stderr_redirector> pymebed_private::_stderr;
 
 //////////////////////////////////////////////////////////////////////////
 
-std::shared_ptr<stdin_redirector>  get_stdin(){
-    return pymebed_private::get_instance()->_stdin;
+boost::shared_ptr<stdin_redirector>  get_stdin(){
+    return pymebed_private::_stdin;
 }
-std::shared_ptr<stdout_redirector> get_stdout() {
-    return pymebed_private::get_instance()->_stdout;
+boost::shared_ptr<stdout_redirector> get_stdout() {
+    return pymebed_private::_stdout;
 }
-std::shared_ptr<stderr_redirector> get_stderr() {
-    return pymebed_private::get_instance()->_stderr;
+boost::shared_ptr<stderr_redirector> get_stderr() {
+    return pymebed_private::_stderr;
 }
 
 BOOST_PYTHON_MODULE(redirector)
@@ -142,19 +207,19 @@ BOOST_PYTHON_MODULE(redirector)
     using namespace boost::python;
 
     class_<stdin_redirector>("stdin",
-        "This class redirects python's standard input to the console.",
+        "This class redirects python's standard input to the pymebed.",
         init<>("initialize the stdin_redirector."))
         .def("__init__", make_constructor(get_stdin), "initialize the redirector.")
         .def("readline", &stdin_redirector::readline, arg("size") = -1, "readline sys.stdin redirection.");
 
     class_<stdout_redirector>("stdout",
-        "This class redirects python's standard output to the console.",
+        "This class redirects python's standard output to the pymebed.",
         init<>("initialize the stdout_redirector."))
         .def("__init__", make_constructor(get_stdout), "initialize the redirector.")
         .def("write", &stdout_redirector::write, "write sys.stdout redirection.");
 
     class_<stderr_redirector>("stderr",
-        "This class redirects python's error output to the console.",
+        "This class redirects python's error output to the pymebed.",
         init<>("initialize the stderr_redirector."))
         .def("__init__", make_constructor(get_stderr), "initialize the redirector.")
         .def("write", &stderr_redirector::write, "write sys.stderr redirection.");
@@ -162,9 +227,10 @@ BOOST_PYTHON_MODULE(redirector)
 
 //////////////////////////////////////////////////////////////////////////
 
-pymebed::pymebed()
+pymebed::pymebed(const std::type_info& type)
 {
     __private = new pymebed_private(this);
+    __private->_redirect = (type != typeid(pymebed)); // 只有在子类化之后才需要重定向
 }
 
 pymebed::~pymebed()
@@ -175,23 +241,15 @@ pymebed::~pymebed()
            __private = nullptr;
 }
 
+pymebed* pymebed::get_ptr()
+{
+    return pymebed_private::_public;
+}
+
 void pymebed::init(
     const std::filesystem::path& pyhome /*= ""*/,
     bool initsigs /*= true*/)
 {
-    __private->_stdin = std::make_shared<stdin_redirector>(
-        [&](int size) -> std::string {
-            return readline_stdin(size);
-        });
-    __private->_stdout = std::make_shared<stdout_redirector>(
-        [&](const std::string& text) {
-            write_stdout(text);
-        });
-    __private->_stderr = std::make_shared<stderr_redirector>(
-        [&](const std::string& text) {
-            write_stderr(text);
-        });
-
     // Register the module with the interpreter; must be called before Py_Initialize.
     /* ToDo: C style cast to avoid compiler warning about
        deprecated conversion from string constant to 'char*' */
@@ -201,6 +259,7 @@ void pymebed::init(
             "interpreter builtin modules");
     }
 
+    // https://docs.python.org/zh-cn/3/c-api/init.html#c.Py_SetPythonHome
     if (!pyhome.empty())
         Py_SetPythonHome(pyhome.c_str());
 
@@ -213,17 +272,18 @@ void pymebed::init(
     PyEval_InitThreads();
 
     // Retrieve the main module
-    __private->_main_module = python::import("__main__");
+    __private->_main_module = bp::import("__main__");
 
     // Retrieve the main module's namespace
-    __private->_main_global = python::dict(__private->_main_module.attr("__dict__"));
+    __private->_global = bp::dict(__private->_main_module.attr("__dict__"));
 
+    if (__private->_redirect)
     {
         static const char* const redirect_py =
             "import sys\n"
             "import redirector\n"
             "sys.stdin  = redirector.stdin()\n"
-            "sys.stdout = redirector.stdout()\n"
+            "sys.stdout = redirector.stdout()\n";
             "sys.stderr = redirector.stderr()\n";
 
 #if 1
@@ -233,7 +293,7 @@ void pymebed::init(
 #else
         PyRun_String(redirect_py,
             Py_file_input,
-            __private->_main_global.ptr(), __private->_main_global.ptr());
+            __private->_global.ptr(), __private->_global.ptr());
 #endif
     }
 }
@@ -281,42 +341,35 @@ void pymebed::register_exception_handler(
     bpy::register_exception_handler([=](
         bpy::exception_handler const& e,
         boost::function0<void> const& f) -> bool {
-            return handler(f);
+            return e([=]{ handler(f); });
         });
 }
 
-boost::python::object pymebed::eval(
-    const std::string& expression,
-    const std::function<void(std::string)>& pyerr /*= {}*/)
+boost::python::object pymebed::eval(const std::string& expression)
 {
     boost::python::object result;
-    __private->exec_some([&]() {
-        result = python::eval(expression.c_str(),
-            __private->_main_global,
-            __private->_main_global);
-        },
-        pyerr);
+    __private->exec_for([&]() {
+        result = bp::eval(expression.c_str(),
+            __private->_global,
+            __private->_local);
+        });
     return result;
 }
 
-boost::python::object pymebed::exec(
-    const std::string& command,
-    const std::function<void(std::string)>& pyerr /*= {}*/)
+boost::python::object pymebed::exec(const std::string& command)
 {
     boost::python::object result;
-    __private->exec_some([&]() {
-        result = python::exec(command.c_str(),
-            __private->_main_global, 
-            __private->_main_global);
-        },
-        pyerr);
+    __private->exec_for([&]() {
+        result = bp::exec(command.c_str(),
+            __private->_global, 
+            __private->_local);
+        });
     return result;
 }
 
 boost::python::object pymebed::exec_file(
     const std::filesystem::path& script, 
-    const std::vector<std::string>& args /*= {}*/,
-    const std::function<void(std::string)>& pyerr /*= {}*/)
+    const std::vector<std::string>& args /*= {}*/)
 {
     // 脚本文件获取绝对路径
     // PySys_SetArgvEx()要求参数argv[0]必须为脚本所在目录
@@ -327,76 +380,96 @@ boost::python::object pymebed::exec_file(
     std::filesystem::path directory = filename.parent_path();
 
     boost::python::object result;
-    __private->exec_some([=, &result]()
+    __private->exec_for([=, &result]()
     {
         // 安装参数
         std::vector<wchar_t*> argv(1, (wchar_t*)directory.c_str()) ;
         std::vector<std::wstring> argd;
                                   argd.reserve(args.size());
-        for (auto& a : args)
+        for (auto& item : args)
         {
-            using namespace util::conv::easy;
-            argd.push_back(_2wstr(a, util::format_utf8));
+            std::wstring output;
+            util::conv::utf8_to_wstring(item, output);
+
+            argd.push_back(output);
             argv.push_back((wchar_t*)argd.back().c_str());
         }
 
         PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1);
 
         // 运行脚本
-        // 是否需要显式关闭文件, 或者PyRun_FileExFlags()的closeit参数应该为true?
+        // https://docs.python.org/3/c-api/veryhigh.html?highlight=pyrun_string#c.PyRun_FileExFlags
         FILE* fs = _Py_wfopen(filename.c_str(), L"r");
-        PyObject* pyobj = PyRun_File(fs,
+        PyObject* pyobj = PyRun_FileExFlags(
+            fs,
             filename.u8string().c_str(),
             Py_file_input,
-            __private->_main_global.ptr(), 
-            __private->_main_global.ptr());
+            __private->_global.ptr(), 
+            __private->_local.ptr(),
+            true,
+            nullptr);
+
         if (!pyobj)
-            throw python::error_already_set();
+            throw bp::error_already_set();
 
         // 不支持宽字节
         //result = python::exec_file(
-        //    filename.string().c_str(), m_main_global, m_main_global);
+        //    filename.string().c_str(), __private->_global, __private->_local);
 
         // 重置参数
         argv.clear();
         argv.push_back(L"");
         PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1);
 
-        result = python::object(python::handle<>(pyobj));
-    },
-    pyerr);
+        result = bp::object(bp::handle<>(pyobj));
+    });
 
     return result;
 }
 
 boost::python::dict& pymebed::global()
 {
-    return __private->_main_global;
+    return __private->_global;
 }
 
-void pymebed::write_stdout(const std::string& bytes)
+boost::python::dict& pymebed::local()
 {
-    Py_BEGIN_ALLOW_THREADS
-    std::string output;
-    std::cout << util::conv::utf8_to_string(bytes, output);
-    Py_END_ALLOW_THREADS
+    return __private->_local;
 }
 
-void pymebed::write_stderr(const std::string& bytes)
+void pymebed::clean()
 {
-    Py_BEGIN_ALLOW_THREADS
-    std::string output;
-    std::cerr << util::conv::utf8_to_string(bytes, output);
-    Py_END_ALLOW_THREADS
+    boost::python::object builtins = __private->_global["__builtins__"];
+
+    __private->_global.clear();
+    __private->_local.clear();
+    __private->_global["__builtins__"] = builtins;
+}
+
+void pymebed::write_stdout(const std::string& str)
+{
+    // 如果派生类没有实现此接口，那么在调试模式下通过异常通知用户，否则通过输出信息。
+    const char* msg = "You need to implement the write_stdout() interface.\n";
+#if defined(DEBUG) || defined(_DEBUG)
+    throw std::runtime_error(msg);
+#endif
+    std::cout << msg;
+}
+
+void pymebed::write_stderr(const std::string& str)
+{
+    const char* msg = "You need to implement the write_stderr() interface.\n";
+#if defined(DEBUG) || defined(_DEBUG)
+    throw std::runtime_error(msg);
+#endif
+    std::cerr << msg;
 }
 
 std::string pymebed::readline_stdin(int size /*= -1*/)
 {
-    std::string result;
-    Py_BEGIN_ALLOW_THREADS
-    std::cin >> result;
-    if (size != -1 && int(result.size()) > size)
-        result.resize(size);
-    Py_END_ALLOW_THREADS
-    return result;
+    const char* msg = "You need to implement the readline_stdin() interface.\n";
+#if defined(DEBUG) || defined(_DEBUG)
+    throw std::runtime_error(msg);
+#endif
+    std::cerr << msg;
 }

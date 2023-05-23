@@ -28,10 +28,10 @@ def run(args = None):
     if args is not None:
         import sys
         sys.argv = args
-    import doctest, test_extending
+    import doctest
+    import test_extending
     return doctest.testmod(test_extending, verbose=True)
 
 if __name__ == '__main__':
     import sys
     sys.exit(run()[0])
-
