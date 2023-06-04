@@ -20,6 +20,7 @@
 // 
 
 #include "pymebed.h"
+#include "pyconvert.hpp"
 #include "utility/utility.hpp"
 
 #include <assert.h>
@@ -102,6 +103,10 @@ public:
             [&](const std::string& str) {
                 _public->write_stderr(str);
             });
+
+        string_from_python_type();
+        string_from_python_base_exception();
+        //string_from_python_traceback();
     }
 
     ~pyembed_private()
@@ -113,35 +118,18 @@ public:
         _public = nullptr;
     }
 
-    void exec_for(const std::function<void()>& f)
+    void exec_for(
+        const std::function<void()>& f, 
+        const std::function<bool(
+            const boost::python::object&, const std::string&)>& e = {})
     {
-#if 0
-        if (boost::python::handle_exception(f))
-        {
-            if (PyErr_Occurred())
-            {
-                PyErr_Print();
-            }
-            else
-            {
-                auto msg =
-                    "A C++ exception was thrown for which "
-                    "there was no exception handler registered.\n";
-                std::cerr << msg;
-            }
-        }
-#endif
-        //PyBaseExceptionObject
-        //PyObject_GetIter();
-        //PyString_Check();
-        //PyBaseException_Check
         try 
         {
             f();
         }
         catch (const bp::error_already_set&)
         {
-            if (1)
+            if (e)
             {
                 // https://docs.python.org/zh-cn/3.6/c-api/exceptions.html#c.PyErr_Fetch
                 // 将清除错误指示器
@@ -150,17 +138,23 @@ public:
                 PyErr_NormalizeException(&exc_type, &exc_value, &exc_traceback);
 
                 bp::object type(bp::handle<>(bp::allow_null(exc_type)));
-                bp::object value(bp::handle<>(bp::allow_null(exc_value)));
+                bp::object exception(bp::handle<>(bp::allow_null(exc_value)));
                 bp::object traceback(bp::handle<>(bp::allow_null(exc_traceback)));
 
-                std::string strtype0 = bp::extract<std::string>(type) BOOST_EXTRACT_WORKAROUND;
-                std::string strtype1 = bp::extract<std::string>(value) BOOST_EXTRACT_WORKAROUND;
-                std::string strtype2 = bp::extract<std::string>(traceback) BOOST_EXTRACT_WORKAROUND;
+                bp::object pymodule = bp::import("traceback");
+                bp::object formatted = pymodule.attr("format_exception")(type, exception, traceback);
+                bp::object content = bp::str("").join(formatted);
+                if (e(exception, boost::python::extract<std::string>(content) BOOST_EXTRACT_WORKAROUND))
+                    return;
+
+                PyErr_Restore(exc_type, exc_value, exc_traceback);
+
+                Py_XINCREF(exc_type);
+                Py_XINCREF(exc_value);
+                Py_XINCREF(exc_traceback);
             }
-            else
-            {
-                PyErr_Print();
-            }
+
+            PyErr_Print();
         }
     }
 
@@ -345,31 +339,42 @@ void pyembed::register_exception_handler(
         });
 }
 
-boost::python::object pyembed::eval(const std::string& expression)
+boost::python::object pyembed::eval(
+    const std::string& expression,
+    const std::function< bool(
+        const boost::python::object&,
+        const std::string&)>& exception_handler /*= {} */)
 {
     boost::python::object result;
     __private->exec_for([&]() {
         result = bp::eval(expression.c_str(),
             __private->_global,
             __private->_local);
-        });
+        }, exception_handler);
     return result;
 }
 
-boost::python::object pyembed::exec(const std::string& command)
+boost::python::object pyembed::exec(
+    const std::string& snippets,
+    const std::function< bool(
+        const boost::python::object&,
+        const std::string&)>& exception_handler /*= {} */)
 {
     boost::python::object result;
     __private->exec_for([&]() {
-        result = bp::exec(command.c_str(),
+        result = bp::exec(snippets.c_str(),
             __private->_global, 
             __private->_local);
-        });
+        }, exception_handler);
     return result;
 }
 
 boost::python::object pyembed::exec_file(
     const std::filesystem::path& script, 
-    const std::vector<std::string>& args /*= {}*/)
+    const std::vector<std::string>& args /*= {}*/,
+    const std::function< bool(
+        const boost::python::object&,
+        const std::string&)>& exception_handler /*= {} */)
 {
     // 脚本文件获取绝对路径
     // PySys_SetArgvEx()要求参数argv[0]必须为脚本所在目录
@@ -422,7 +427,7 @@ boost::python::object pyembed::exec_file(
         PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1);
 
         result = bp::object(bp::handle<>(pyobj));
-    });
+    }, exception_handler);
 
     return result;
 }

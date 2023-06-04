@@ -100,21 +100,44 @@ public:
 
     //! @brief 计算给定表达式的值并返回结果值
     //! @param expression Python 表达式
+    //! @param exception_handler 异常处理器，发生异常时将被调用，回调返回true表示异常已处理，
+    //!     否则将打印到错误输出，签名如下：
+    //!     bool(const boost::python::object& pyexception, const std::string& traceback);
     //! @return 返回计算结果值
-    PYEMBED_LIB boost::python::object eval(const std::string& expression);
+    PYEMBED_LIB boost::python::object eval(
+        const std::string& expression,
+        const std::function<
+            bool(const boost::python::object&, 
+                 const std::string&)>& exception_handler = {}
+    );
 
     //! @brief 执行给定的代码（通常是一组表达式）并返回结果
-    //! @param command Python 代码
+    //! @param snippets Python 代码片段
+    //! @param exception_handler 异常处理器，发生异常时将被调用，回调返回true表示异常已处理，
+    //!     否则将打印到错误输出，签名如下：
+    //!     bool(const boost::python::object& pyexception, const std::string& traceback);
     //! @return 返回计算结果值
-    PYEMBED_LIB boost::python::object exec(const std::string& command);
+    PYEMBED_LIB boost::python::object exec(
+        const std::string& snippets,
+        const std::function<
+            bool(const boost::python::object&,
+                 const std::string&)>& exception_handler = {}
+    );
 
     //! @brief 执行包含在给定文件中的代码并返回结果
     //! @param script 文件名
     //! @param args 执行参数
+    //! @param exception_handler 异常处理器，发生异常时将被调用，回调返回true表示异常已处理，
+    //!     否则将打印到错误输出，签名如下：
+    //!     bool(const boost::python::object& pyexception, const std::string& traceback);
     //! @return 返回计算结果值
     PYEMBED_LIB boost::python::object exec_file(
         const std::filesystem::path& script,
-        const std::vector<std::string>& args = {});
+        const std::vector<std::string>& args = {},
+        const std::function<
+            bool(const boost::python::object&,
+                 const std::string&)>& exception_handler = {}
+    );
 
     //! @brief 获得解释器的全局或局部上下文
     //! @return 返回全局上下文的字典对象

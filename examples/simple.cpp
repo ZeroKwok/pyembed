@@ -22,6 +22,7 @@
 #include "pymebed.h"
 #include <iostream>
 #include <filesystem>
+#include <boost/format.hpp>
 
 // 修改下面的预处理条件，启用重定向标准流的示例
 #if 1
@@ -71,6 +72,7 @@ inline pyembed_ex& my_pyembed() {
 
 int main(int argc, char* argv[])
 {
+    namespace bp = boost::python;
     std::cout << "Testing embedded python: " << std::endl;
 
     // 初始化并以程序当前目录作为解释器的家目录
@@ -80,8 +82,19 @@ int main(int argc, char* argv[])
     my_pyembed().exec("print(\"Hello\")\n");
     my_pyembed().exec("print(\"World\")\n\n");
 
-    // 抛出Python异常默认实现是输出到标准错误流
+    // 抛出Python异常默认实现是输出到标准错误流，指定异常处理器可以覆写此逻辑
     my_pyembed().exec("Hello\n");
+    my_pyembed().exec("Hello\n", 
+        [](bp::object pyexception, const std::string& traceback) 
+        {
+            std::string exception = bp::extract<std::string>(pyexception);
+            auto display = boost::str(boost::format(
+                "my_pyembed().exec() failed, error: {%1%}\n%2%")
+                % exception % traceback);
+            std::cerr << display << std::endl;
+
+            return true; // 返回false表示异常没有被处理，将被打印到标准错误中。
+        });
 
     // 标准输入流
     my_pyembed().exec("print(input('input:'))\n");

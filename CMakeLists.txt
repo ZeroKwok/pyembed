@@ -26,7 +26,7 @@ project(pyembed VERSION 0.1.2)
 
 option(PYEMBED_BUILD_EXAMPLE    "Compile the example" ON)
 option(PYEMBED_STATIC_RUNTIME   "Enable static linking with runtime" OFF)
-option(PYEMBED_BUILD_SHARED_LIB "Build the shared library" ON)
+option(PYEMBED_BUILD_SHARED_LIB "Build the shared library" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -50,7 +50,11 @@ if(MSVC)
     add_compile_options(/utf-8)
 endif()
 
-set(Boost_USE_STATIC_LIBS ON)
+# 强制动态库模式下使用动态库版本的Boost
+if (NOT PYMEBED_BUILD_SHARED_LIB)
+    set(Boost_USE_STATIC_LIBS ON)
+endif()
+
 add_compile_definitions(BOOST_LIB_DIAGNOSTIC=1)
 add_compile_definitions(BOOST_PYTHON_STATIC_LIB=1)
 add_compile_definitions(AUTO_LINK_LIB_DIAGNOSTIC=1)
@@ -79,7 +83,8 @@ file(GLOB SOURCE_FILES
 
 if (PYEMBED_BUILD_SHARED_LIB)
     # 如果采用动态库方式，则Boost也必须采用动态库，否则
-    #   boost::python::detail::exception_handler的静态成员变量可能存在多个实例，导致异常处理失效
+    #   boost::python::detail::exception_handler等静态成员变量可能存在多个实例
+    #   导致异常处理失效
     add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${INCLUDE_FILES})
     target_compile_definitions(${PROJECT_NAME} PRIVATE PYEMBED_SHARED_LIB)
 else()
