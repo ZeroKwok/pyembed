@@ -43,17 +43,17 @@ enum pipe_type
 };
 
 template<pipe_type>
-class PYEMBED_LIB py_redirector
+class PYEMBED_LIB pyredirector
 {
 public:
-    py_redirector()
+    pyredirector()
     { }
 
-    py_redirector(std::function<void(const std::string&)> f)
+    pyredirector(std::function<void(const std::string&)> f)
         : m_fwrite(f)
     { }
 
-    py_redirector(std::function<std::string(int size)> f)
+    pyredirector(std::function<std::string(int size)> f)
         : m_freadline(f)
     { }
 
@@ -76,12 +76,22 @@ public:
     std::function<std::string(int size)>    m_freadline;
 };
 
-typedef py_redirector<pystdin>  stdin_redirector;
-typedef py_redirector<pystdout> stdout_redirector;
-typedef py_redirector<pystderr> stderr_redirector;
+typedef pyredirector<pystdin>  stdin_redirector;
+typedef pyredirector<pystdout> stdout_redirector;
+typedef pyredirector<pystderr> stderr_redirector;
 
 //////////////////////////////////////////////////////////////////////////
 
+std::string pyembed::pyerror::format_exception() const
+{
+    bp::object pymodule = bp::import("traceback");
+    bp::object formatted = pymodule.attr("format_exception")(pytype, pyexception, pytraceback);
+    bp::object content = bp::str("").join(formatted);
+
+    return bp::extract<std::string>(content) BOOST_EXTRACT_WORKAROUND;
+}
+
+// 私有类
 class pyembed_private 
 {
 public:
@@ -120,8 +130,7 @@ public:
 
     void exec_for(
         const std::function<void()>& f, 
-        const std::function<bool(
-            const boost::python::object&, const std::string&)>& e = {})
+        const std::function<bool(const pyembed::pyerror&)>& e = {})
     {
         try 
         {
@@ -137,14 +146,13 @@ public:
                 PyErr_Fetch(&exc_type, &exc_value, &exc_traceback);
                 PyErr_NormalizeException(&exc_type, &exc_value, &exc_traceback);
 
-                bp::object type(bp::handle<>(bp::allow_null(exc_type)));
-                bp::object exception(bp::handle<>(bp::allow_null(exc_value)));
-                bp::object traceback(bp::handle<>(bp::allow_null(exc_traceback)));
+                pyembed::pyerror pyerr = {
+                    bp::object(bp::handle<>(bp::allow_null(exc_type))),
+                    bp::object(bp::handle<>(bp::allow_null(exc_value))),
+                    bp::object(bp::handle<>(bp::allow_null(exc_traceback))),
+                };
 
-                bp::object pymodule = bp::import("traceback");
-                bp::object formatted = pymodule.attr("format_exception")(type, exception, traceback);
-                bp::object content = bp::str("").join(formatted);
-                if (e(exception, boost::python::extract<std::string>(content) BOOST_EXTRACT_WORKAROUND))
+                if (e(pyerr))
                     return;
 
                 PyErr_Restore(exc_type, exc_value, exc_traceback);
@@ -263,6 +271,9 @@ void pyembed::init(
     // Bug: 3.8, 3.9. 3.10
     // https://bugs.python.org/issue41686
     Py_InitializeEx(__private->_initsigs = initsigs);
+
+    // For Python 3.6 and older
+    // https://docs.python.org/3/c-api/init.html?highlight=pyeval_initthreads#c.PyEval_InitThreads
     PyEval_InitThreads();
 
     // Retrieve the main module
@@ -309,8 +320,8 @@ bool pyembed::append_inittab(
     {
         write_stderr(
             boost::str(boost::format(
-                "Failed to add {1} to the interpreter's "
-                "builtin modules") % name));
+                "Failed to add %1% to the interpreter's builtin modules") 
+                % name));
         return false;
     }
 
@@ -341,9 +352,7 @@ void pyembed::register_exception_handler(
 
 boost::python::object pyembed::eval(
     const std::string& expression,
-    const std::function< bool(
-        const boost::python::object&,
-        const std::string&)>& exception_handler /*= {} */)
+    const std::function<bool(const pyerror&)>& exception_handler /*= {} */)
 {
     boost::python::object result;
     __private->exec_for([&]() {
@@ -356,9 +365,7 @@ boost::python::object pyembed::eval(
 
 boost::python::object pyembed::exec(
     const std::string& snippets,
-    const std::function< bool(
-        const boost::python::object&,
-        const std::string&)>& exception_handler /*= {} */)
+    const std::function<bool(const pyerror&)>& exception_handler /*= {} */)
 {
     boost::python::object result;
     __private->exec_for([&]() {
@@ -372,9 +379,7 @@ boost::python::object pyembed::exec(
 boost::python::object pyembed::exec_file(
     const std::filesystem::path& script, 
     const std::vector<std::string>& args /*= {}*/,
-    const std::function< bool(
-        const boost::python::object&,
-        const std::string&)>& exception_handler /*= {} */)
+    const std::function<bool(const pyerror&)>& exception_handler /*= {} */)
 {
     // 脚本文件获取绝对路径
     // PySys_SetArgvEx()要求参数argv[0]必须为脚本所在目录

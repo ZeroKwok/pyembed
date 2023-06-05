@@ -78,8 +78,8 @@ public:
         PyObject* (*initfunc)(void));
     
     struct pymoudle {
-        const char* name;
-        PyObject* (*initfunc)(void);
+        const char* name;               //!< 模块名
+        PyObject* (*initfunc)(void);    //!< 模块初始化入口, 通常以"PyInit_"开头, 后面跟模块名
     };
 
     //! @brief 添加初始化时导入解释器的内建模块
@@ -98,46 +98,48 @@ public:
     PYEMBED_LIB void register_exception_handler(
         const std::function<bool(std::function<void()>)>& handler);
 
+    struct pyerror
+    {
+        boost::python::object pytype;       //!< 异常类型     (PyTypeObject*)
+        boost::python::object pyexception;  //!< 异常对象     (PyBaseExceptionObject*)
+        boost::python::object pytraceback;  //!< 异常栈跟踪对象(PyTracebackObject*)
+
+        //! @brief 格式化异常(traceback.format_exception())
+        //! @return 返回格式化后的字符串(utf-8)
+        PYEMBED_LIB std::string format_exception() const;
+    };
+
     //! @brief 计算给定表达式的值并返回结果值
-    //! @param expression Python 表达式
-    //! @param exception_handler 异常处理器，发生异常时将被调用，回调返回true表示异常已处理，
-    //!     否则将打印到错误输出，签名如下：
-    //!     bool(const boost::python::object& pyexception, const std::string& traceback);
+    //! @param expression Python 表达式(utf-8)
+    //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
+    //!     bool(const pymebed::pyerror& pyerr);
+    //!     返回true表示异常已处理，false将打印到错误输出。
     //! @return 返回计算结果值
     PYEMBED_LIB boost::python::object eval(
         const std::string& expression,
-        const std::function<
-            bool(const boost::python::object&, 
-                 const std::string&)>& exception_handler = {}
-    );
+        const std::function<bool(const pyerror&)>& exception_handler = {});
 
     //! @brief 执行给定的代码（通常是一组表达式）并返回结果
-    //! @param snippets Python 代码片段
-    //! @param exception_handler 异常处理器，发生异常时将被调用，回调返回true表示异常已处理，
-    //!     否则将打印到错误输出，签名如下：
-    //!     bool(const boost::python::object& pyexception, const std::string& traceback);
+    //! @param snippets Python 代码片段(utf-8)
+    //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
+    //!     bool(const pymebed::pyerror& pyerr);
+    //!     返回true表示异常已处理，false将打印到错误输出。
     //! @return 返回计算结果值
     PYEMBED_LIB boost::python::object exec(
         const std::string& snippets,
-        const std::function<
-            bool(const boost::python::object&,
-                 const std::string&)>& exception_handler = {}
-    );
+        const std::function<bool(const pyerror&)>& exception_handler = {});
 
     //! @brief 执行包含在给定文件中的代码并返回结果
     //! @param script 文件名
     //! @param args 执行参数
-    //! @param exception_handler 异常处理器，发生异常时将被调用，回调返回true表示异常已处理，
-    //!     否则将打印到错误输出，签名如下：
-    //!     bool(const boost::python::object& pyexception, const std::string& traceback);
+    //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
+    //!     bool(const pymebed::pyerror& pyerr);
+    //!     返回true表示异常已处理，false将打印到错误输出。
     //! @return 返回计算结果值
     PYEMBED_LIB boost::python::object exec_file(
         const std::filesystem::path& script,
         const std::vector<std::string>& args = {},
-        const std::function<
-            bool(const boost::python::object&,
-                 const std::string&)>& exception_handler = {}
-    );
+        const std::function<bool(const pyerror&)>& exception_handler = {});
 
     //! @brief 获得解释器的全局或局部上下文
     //! @return 返回全局上下文的字典对象
@@ -145,7 +147,7 @@ public:
     PYEMBED_LIB boost::python::dict& local();
 
     //! @brief 清除解释器状态
-    //! @note 
+    //! @note 实际上pymebed仅清除了global与local上下文环境对象。
     PYEMBED_LIB void clean();
 
     //! @brief sys.stdin.readline()的重定向接口
