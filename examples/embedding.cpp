@@ -68,9 +68,6 @@ BOOST_PYTHON_MODULE(TestCppException)
 
 int main(int argc, char** argv)
 {
-    //BOOST_TEST(argc == 2 || argc == 3);
-    //std::string script = argv[1];
-
     std::filesystem::path floder = __FILE__;
     floder = floder.parent_path() / "scripts";
     std::string script = (floder / "script.py").string();
@@ -124,9 +121,8 @@ int main(int argc, char** argv)
                 }
                 catch (const std::runtime_error& e) 
                 {
-                    // 仅拦截感兴趣的异常，并转换为Python错误，其他异常将在异常处理器链上处理
+                    // 仅拦截感兴趣的异常，并转换为Python错误，其他异常将在上游异常处理器链上处理
                     // 如果没有注册其他异常处理的话，最顶层的异常处理器是:
-                    // 
                     // boost\python\errors.hpp: handle_exception_impl()
                     PyErr_SetString(PyExc_RuntimeError, e.what());
                 }

@@ -24,7 +24,7 @@
 #include <filesystem>
 #include <boost/format.hpp>
 
-// 修改下面的预处理条件，启用重定向标准流的示例
+// 修改下面的预处理条件，启用重定向标准输入/输出的示例
 #if 1
 inline pyembed& my_pyembed() {
     return get_pyembed();
@@ -32,7 +32,7 @@ inline pyembed& my_pyembed() {
 
 #else
 
-// 子类化是为了重写标准流的处理
+// 子类化是为了重定向标准输入/输出的处理
 class pyembed_ex : public pyembed
 {
 public:
@@ -49,7 +49,8 @@ public:
     }
 
     // 注意:
-    // str 为utf-8编码，这里仅做示范：如何重定向标准流, 并未处理编码转换, 因此遇到中文时会出现乱码
+    // str 为utf-8编码，这里仅示范："如何重定向标准输入输出"。
+    // 并未处理编码转换，因此遇到中文时会出现乱码。
     void write_stdout(const std::string& str) override
     {
         Py_BEGIN_ALLOW_THREADS
@@ -84,13 +85,17 @@ int main(int argc, char* argv[])
 
     // 抛出Python异常默认实现是输出到标准错误流，指定异常处理器可以覆写此逻辑
     my_pyembed().exec("Hello\n");
-    my_pyembed().exec("Hello\n", 
-        [](bp::object pyexception, const std::string& traceback) 
+    my_pyembed().exec("Hello\n",
+        [](const pyembed::pyerror& pyerr)
         {
-            std::string exception = bp::extract<std::string>(pyexception);
+            std::string message = bp::extract<std::string>(pyerr.pyexception);
+            std::string exception = pyerr.format_exception();
+
             auto display = boost::str(boost::format(
-                "my_pyembed().exec() failed, error: {%1%}\n%2%")
-                % exception % traceback);
+                "\n"
+                "my_pyembed().exec() failed, error: %1%\n"
+                "%2%")
+                % message % exception);
             std::cerr << display << std::endl;
 
             return true; // 返回false表示异常没有被处理，将被打印到标准错误中。
