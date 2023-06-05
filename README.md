@@ -13,3 +13,19 @@
 **pymebed**的出现就是为了解决以上问题。
 
 
+## 快速开始
+
+环境需求
+
+- Boost （建议版本1.6及以上）
+- Python（建议版本3.8及以上）
+
+### Windows
+
+```shell
+$ git clone https://github.com/xxxxxx.git pymebed
+$ cd pymebed && mkdir build && cd build
+$ cmake -G "Visual Studio 16 2019" -A Win32 .. -DCMAKE_INSTALL_PREFIX:PATH="G:\install\pymebed" -DCMAKE_PREFIX_PATH="G:\local\boost\boost_1_82_0-msvc-14.2-32;G:\local\python\3.10.11"
+$ cmake --build   . --config RelWithDebInfo
+$ cmake --install . --config RelWithDebInfo
+```

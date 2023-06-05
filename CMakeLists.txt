@@ -59,7 +59,7 @@ add_compile_definitions(BOOST_LIB_DIAGNOSTIC=1)
 add_compile_definitions(BOOST_PYTHON_STATIC_LIB=1)
 add_compile_definitions(AUTO_LINK_LIB_DIAGNOSTIC=1)
 
-find_package(Boost REQUIRED filesystem)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(Python3 REQUIRED COMPONENTS Development)
 
 # 调试输出
@@ -132,7 +132,7 @@ install(FILES "${PROJECT_PDB_DIRECTORY}/\${CMAKE_INSTALL_CONFIG_NAME}/${PROJECT_
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE DESTINATION ./ OPTIONAL)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/README.md DESTINATION ./ OPTIONAL)
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/example DESTINATION ./)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/examples DESTINATION ./)
 
 if(PYEMBED_BUILD_EXAMPLE)
     add_subdirectory(examples)

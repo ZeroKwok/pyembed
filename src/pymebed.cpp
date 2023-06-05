@@ -482,4 +482,6 @@ std::string pyembed::readline_stdin(int size /*= -1*/)
     throw std::runtime_error(msg);
 #endif
     std::cerr << msg;
+
+    return {};
 }
