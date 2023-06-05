@@ -95,10 +95,21 @@ std::string pyembed::pyerror::format_exception() const
 class pyembed_private 
 {
 public:
-    pyembed_private(pyembed* p)
-    {
+    pyembed_private(pyembed* p) {
         _public = p;
+    }
 
+    ~pyembed_private()
+    {
+        _stdin.reset();
+        _stdout.reset();
+        _stderr.reset();
+
+        _public = nullptr;
+    }
+
+    void init()
+    {
         _stdin = boost::make_shared<stdin_redirector>(
             [&](int size) -> std::string {
                 return _public->readline_stdin(size);
@@ -114,18 +125,16 @@ public:
                 _public->write_stderr(str);
             });
 
+        // Retrieve the main module
+        _main_module = std::make_shared<bp::object>(bp::import("__main__"));
+
+        // Retrieve the main module's namespace
+        _global = std::make_shared<bp::dict>(_main_module->attr("__dict__"));
+        _local = std::make_shared<bp::dict>();
+
         string_from_python_type();
         string_from_python_base_exception();
         //string_from_python_traceback();
-    }
-
-    ~pyembed_private()
-    {
-        _stdin.reset();
-        _stdout.reset();
-        _stderr.reset();
-
-        _public = nullptr;
     }
 
     void exec_for(
@@ -175,11 +184,12 @@ public:
     }
 
 public:
-    bool           _initsigs;   // 是否初始化信号处理器
-    bool           _redirect;   // 是否重定向标准流
-    bp::object _main_module;
-    bp::dict   _global;
-    bp::dict   _local;
+    bool  _initsigs;   // 是否初始化信号处理器
+    bool  _redirect;   // 是否重定向标准流
+
+    std::shared_ptr<bp::object> _main_module;
+    std::shared_ptr<bp::dict>   _global;
+    std::shared_ptr<bp::dict>   _local;
     
     static pyembed* _public;
     static boost::shared_ptr<stdin_redirector>  _stdin;
@@ -258,7 +268,7 @@ void pyembed::init(
     if (PyImport_AppendInittab((char*)"redirector", PyInit_redirector) == -1) {
         throw std::runtime_error(
             "Failed to add embedded_python to python's "
-            "interpreter builtin modules");
+            "interpreter built-in modules");
     }
 
     // https://docs.python.org/zh-cn/3/c-api/init.html#c.Py_SetPythonHome
@@ -272,15 +282,13 @@ void pyembed::init(
     // https://bugs.python.org/issue41686
     Py_InitializeEx(__private->_initsigs = initsigs);
 
+#if PY_VERSION_HEX < 0x3070000
     // For Python 3.6 and older
     // https://docs.python.org/3/c-api/init.html?highlight=pyeval_initthreads#c.PyEval_InitThreads
     PyEval_InitThreads();
+#endif
 
-    // Retrieve the main module
-    __private->_main_module = bp::import("__main__");
-
-    // Retrieve the main module's namespace
-    __private->_global = bp::dict(__private->_main_module.attr("__dict__"));
+    __private->init();
 
     if (__private->_redirect)
     {
@@ -320,7 +328,7 @@ bool pyembed::append_inittab(
     {
         write_stderr(
             boost::str(boost::format(
-                "Failed to add %1% to the interpreter's builtin modules") 
+                "Failed to add %1% to the interpreter's built-in modules") 
                 % name));
         return false;
     }
@@ -357,8 +365,8 @@ boost::python::object pyembed::eval(
     boost::python::object result;
     __private->exec_for([&]() {
         result = bp::eval(expression.c_str(),
-            __private->_global,
-            __private->_local);
+            *__private->_global,
+            *__private->_local);
         }, exception_handler);
     return result;
 }
@@ -370,8 +378,8 @@ boost::python::object pyembed::exec(
     boost::python::object result;
     __private->exec_for([&]() {
         result = bp::exec(snippets.c_str(),
-            __private->_global, 
-            __private->_local);
+            *__private->_global, 
+            *__private->_local);
         }, exception_handler);
     return result;
 }
@@ -414,8 +422,8 @@ boost::python::object pyembed::exec_file(
             fs,
             filename.u8string().c_str(),
             Py_file_input,
-            __private->_global.ptr(), 
-            __private->_local.ptr(),
+            __private->_global->ptr(), 
+            __private->_local->ptr(),
             true,
             nullptr);
 
@@ -439,21 +447,21 @@ boost::python::object pyembed::exec_file(
 
 boost::python::dict& pyembed::global()
 {
-    return __private->_global;
+    return *__private->_global;
 }
 
 boost::python::dict& pyembed::local()
 {
-    return __private->_local;
+    return *__private->_local;
 }
 
 void pyembed::clean()
 {
-    boost::python::object builtins = __private->_global["__builtins__"];
+    boost::python::object builtins = global()["__builtins__"];
 
-    __private->_global.clear();
-    __private->_local.clear();
-    __private->_global["__builtins__"] = builtins;
+    local().clear();
+    global().clear();
+    global()["__builtins__"] = builtins;
 }
 
 void pyembed::write_stdout(const std::string& str)
