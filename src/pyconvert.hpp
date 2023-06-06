@@ -122,7 +122,7 @@ struct string_from_python_traceback
         namespace py = boost::python;
         py::handle<> obj(py::borrowed(obj_ptr));
         py::object traceback = py::import("traceback");
-        py::object formatted = traceback.attr("format_tb)(obj);
+        py::object formatted = traceback.attr("format_tb")(obj);
         py::object tbcontent = py::str("\n").join(formatted);
 
         void* storage = (

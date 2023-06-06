@@ -43,8 +43,6 @@
 //! 
 class pyembed
 {
-    template <typename T>
-    friend T& get_pyembed();
     friend class pyembed_private;
     class pyembed_private* __private;
 
@@ -53,6 +51,18 @@ protected:
     PYEMBED_LIB static   pyembed* get_ptr();
 
 public:
+    //!
+    //! @brief 用于获得pyembed实例的便捷函数
+    //! @note  1. 线程不安全，应当在进入多线程之前获取实例
+    //!        2. 由于GCC不支持在友元声明中加入默认模板参数，所以这里修改为静态方法
+    //!
+    template<class T = pyembed>
+    static T& get() {
+        if (T::get_ptr() == nullptr)
+            new T(typeid(T));
+        return static_cast<T&>(*T::get_ptr());
+    }
+
     PYEMBED_LIB virtual ~pyembed();
 
     pyembed(const pyembed&) = delete;
@@ -112,7 +122,7 @@ public:
     //! @brief 计算给定表达式的值并返回结果值
     //! @param expression Python 表达式(utf-8)
     //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
-    //!     bool(const pymebed::pyerror& pyerr);
+    //!     bool(const pyembed::pyerror& pyerr);
     //!     返回true表示异常已处理，false将打印到错误输出。
     //! @return 返回计算结果值
     PYEMBED_LIB boost::python::object eval(
@@ -122,7 +132,7 @@ public:
     //! @brief 执行给定的代码（通常是一组表达式）并返回结果
     //! @param snippets Python 代码片段(utf-8)
     //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
-    //!     bool(const pymebed::pyerror& pyerr);
+    //!     bool(const pyembed::pyerror& pyerr);
     //!     返回true表示异常已处理，false将打印到错误输出。
     //! @return 返回计算结果值
     PYEMBED_LIB boost::python::object exec(
@@ -133,7 +143,7 @@ public:
     //! @param script 文件名
     //! @param args 执行参数
     //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
-    //!     bool(const pymebed::pyerror& pyerr);
+    //!     bool(const pyembed::pyerror& pyerr);
     //!     返回true表示异常已处理，false将打印到错误输出。
     //! @return 返回计算结果值
     PYEMBED_LIB boost::python::object exec_file(
@@ -147,7 +157,7 @@ public:
     PYEMBED_LIB boost::python::dict& local();
 
     //! @brief 清除解释器状态
-    //! @note 实际上pymebed仅清除了global与local上下文环境对象。
+    //! @note 实际上pyembed仅清除了global与local上下文环境对象。
     PYEMBED_LIB void clean();
 
     //! @brief sys.stdin.readline()的重定向接口
@@ -165,17 +175,5 @@ public:
     //! @note pyembed默认不会启动重定向机制，除非通过子类化并重写虚函数。
     PYEMBED_LIB virtual void write_stderr(const std::string& str);
 };
-
-//!
-//! 用于获得pyembed实例的便捷函数
-//! 注意：
-//!     线程不安全，应当在进入多线程之前获取实例
-//!
-template<class T = pyembed>
-T& get_pyembed() {
-    if (T::get_ptr() == nullptr)
-        new T(typeid(T));
-    return static_cast<T&>(*T::get_ptr());
-}
 
 #endif // pyembed_h__

@@ -19,7 +19,7 @@
 // Contact: zero.kwok@foxmail.com 
 // 
 
-#include "pymebed.h"
+#include "pyembed.h"
 #include "pyconvert.hpp"
 #include "utility/utility.hpp"
 
@@ -273,7 +273,7 @@ void pyembed::init(
 
     // https://docs.python.org/zh-cn/3/c-api/init.html#c.Py_SetPythonHome
     if (!pyhome.empty())
-        Py_SetPythonHome(pyhome.c_str());
+        Py_SetPythonHome(pyhome.wstring().c_str());
 
     // Set initsigs to 0 to skips initialization registration of signal handlers.
     // It is a fatal error if the initialization fails.
@@ -412,9 +412,9 @@ boost::python::object pyembed::exec_file(
             argd.push_back(output);
             argv.push_back((wchar_t*)argd.back().c_str());
         }
-
         PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1);
 
+#if OS_WIN
         // 运行脚本
         // https://docs.python.org/3/c-api/veryhigh.html?highlight=pyrun_string#c.PyRun_FileExFlags
         FILE* fs = _Py_wfopen(filename.c_str(), L"r");
@@ -427,19 +427,25 @@ boost::python::object pyembed::exec_file(
             true,
             nullptr);
 
+        // 重置参数
+        argv.clear();
+        argv.push_back({});
+        PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1);
+
         if (!pyobj)
             throw bp::error_already_set();
-
+        result = bp::object(bp::handle<>(pyobj));
+#else
         // 不支持宽字节
-        //result = python::exec_file(
-        //    filename.string().c_str(), __private->_global, __private->_local);
+        result = bp::exec_file(
+           filename.string().c_str(), *__private->_global, *__private->_local);
 
         // 重置参数
         argv.clear();
-        argv.push_back(L"");
+        argv.push_back({});
         PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1);
+#endif
 
-        result = bp::object(bp::handle<>(pyobj));
     }, exception_handler);
 
     return result;

@@ -10,7 +10,7 @@
 - 如何处理非ASCII字符的文件名(比如：在Windows下含有中文的文件名)?
 - 如何在执行Python文件时，指定命令行参数?
 
-**pymebed**的出现就是为了解决以上问题。
+**pyembed**的出现就是为了解决以上问题。
 
 ## Build && Install
 
@@ -27,14 +27,14 @@
 1. 克隆仓库
 
     ```shell
-    $ git clone https://github.com/xxxxxx.git pymebed
+    $ git clone https://github.com/xxxxxx.git pyembed
     ```
 
 2. 构建并编译, 这里需要修改成自己的配置
 
     ```shell
-    $ cd pymebed && mkdir build && cd build
-    $ cmake -G "Visual Studio 16 2019" -A Win32 .. -DCMAKE_INSTALL_PREFIX:PATH="G:\install\pymebed" -DCMAKE_PREFIX_PATH="G:\local\boost\boost_1_82_0-msvc-14.2-32;G:\local\python\3.10.11"
+    $ cd pyembed && mkdir build && cd build
+    $ cmake -G "Visual Studio 16 2019" -A Win32 .. -DCMAKE_INSTALL_PREFIX:PATH="G:\install\pyembed" -DCMAKE_PREFIX_PATH="G:\local\boost\boost_1_82_0-msvc-14.2-32;G:\local\python\3.10.11"
     $ cmake --build . --config Debug
     $ cmake --build . --config RelWithDebInfo
     ```
@@ -72,7 +72,7 @@ bin
 | 
 |-- python310.dll
 |-- python310._pth
-`-- simple_for_pymebed.exe
+`-- simple_for_pyembed.exe
 
 ```
 

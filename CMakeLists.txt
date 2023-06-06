@@ -51,15 +51,17 @@ if(MSVC)
 endif()
 
 # 强制动态库模式下使用动态库版本的Boost
-if (NOT PYMEBED_BUILD_SHARED_LIB)
+if (NOT PYEMBED_BUILD_SHARED_LIB)
     set(Boost_USE_STATIC_LIBS ON)
 endif()
 
-add_compile_definitions(BOOST_LIB_DIAGNOSTIC=1)
 add_compile_definitions(BOOST_PYTHON_STATIC_LIB=1)
-add_compile_definitions(AUTO_LINK_LIB_DIAGNOSTIC=1)
-
-find_package(Boost REQUIRED COMPONENTS filesystem)
+if (UNIX)
+    find_package(Boost REQUIRED COMPONENTS filesystem python)
+else()
+    add_compile_definitions(BOOST_LIB_DIAGNOSTIC=1)
+    find_package(Boost REQUIRED COMPONENTS filesystem)
+endif()
 find_package(Python3 REQUIRED COMPONENTS Development)
 
 # 调试输出
@@ -99,6 +101,13 @@ target_link_directories(${PROJECT_NAME} PUBLIC ${Python3_LIBRARY_DIRS})
 # 不能连接CMake目标, 否则将导致: 
 #   Assertion failed: !PyErr_Occurred(), file D:\a\1\s\Objects\typeobject.c, line 3129
 #target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python)
+
+if(UNIX)
+    target_link_libraries(${PROJECT_NAME} PUBLIC 
+    Python3::Python 
+    Boost::filesystem
+    Boost::python)
+endif()
 
 set(CMAKE_MODULE_PATH "${utility_SOURCE_DIR}/cmake")
 set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")

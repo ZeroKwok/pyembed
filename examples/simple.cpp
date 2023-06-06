@@ -19,7 +19,7 @@
 // Contact: zero.kwok@foxmail.com 
 // 
 
-#include "pymebed.h"
+#include "pyembed.h"
 #include <iostream>
 #include <filesystem>
 #include <boost/format.hpp>
@@ -27,7 +27,7 @@
 // 修改下面的预处理条件，启用重定向标准输入/输出的示例
 #if 1
 inline pyembed& my_pyembed() {
-    return get_pyembed();
+    return pyembed::get();
 }
 
 #else
@@ -67,7 +67,7 @@ public:
 };
 
 inline pyembed_ex& my_pyembed() {
-    return get_pyembed<pyembed_ex>();
+    return pyembed::get<pyembed_ex>();
 }
 #endif
 
@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
     my_pyembed().exec("print(input('input:'))\n");
 
     // 中断处理：按 Ctrl+C 中断循环 
-    get_pyembed().exec(
+    my_pyembed().exec(
         "import time\n"
         "for i in range(1000) :\n"
         "   print(i)\n"

@@ -79,7 +79,7 @@ inline const uintptr_t _utf162utf8(const wchar_t* input, char* output)
 
 } // detail
 
-std::wstring& string_to_wstring(
+inline std::wstring& string_to_wstring(
     const std::string& input, std::wstring& output)
 {
     size_t len = detail::_ansi2utf16(input.c_str(), 0);
@@ -93,7 +93,7 @@ std::wstring& string_to_wstring(
     return output;
 }
 
-std::string& wstring_to_string(
+inline std::string& wstring_to_string(
     const std::wstring& input, std::string& output)
 {
     size_t len = detail::_utf162ansi(input.c_str(), 0);
@@ -107,7 +107,7 @@ std::string& wstring_to_string(
     return output;
 }
 
-std::wstring& utf8_to_wstring(
+inline std::wstring& utf8_to_wstring(
     const std::string& input, std::wstring& output)
 {
     size_t len = detail::_utf82utf16(input.c_str(), 0);
@@ -121,7 +121,7 @@ std::wstring& utf8_to_wstring(
     return output;
 }
 
-std::string& wstring_to_utf8(
+inline std::string& wstring_to_utf8(
     const std::wstring& str, std::string& output)
 {
     size_t len = detail::_utf162utf8(str.c_str(), 0);
@@ -135,7 +135,7 @@ std::string& wstring_to_utf8(
     return output;
 }
 
-std::string& utf8_to_string(
+inline std::string& utf8_to_string(
     const std::string& input, std::string& output)
 {
     std::wstring buff;
@@ -145,7 +145,7 @@ std::string& utf8_to_string(
     return output;
 }
 
-std::string& string_to_utf8(
+inline std::string& string_to_utf8(
     const std::string& input, std::string& output)
 {
     std::wstring buff;
