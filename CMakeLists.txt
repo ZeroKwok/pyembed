@@ -104,9 +104,9 @@ target_link_directories(${PROJECT_NAME} PUBLIC ${Python3_LIBRARY_DIRS})
 
 if(UNIX)
     target_link_libraries(${PROJECT_NAME} PUBLIC 
-    Python3::Python 
-    Boost::filesystem
-    Boost::python)
+        Python3::Python 
+        Boost::filesystem
+        Boost::python)
 endif()
 
 set(CMAKE_MODULE_PATH "${utility_SOURCE_DIR}/cmake")

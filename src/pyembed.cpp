@@ -400,19 +400,24 @@ boost::python::object pyembed::exec_file(
     boost::python::object result;
     __private->exec_for([=, &result]()
     {
-        // 安装参数
-        std::vector<wchar_t*> argv(1, (wchar_t*)directory.c_str()) ;
-        std::vector<std::wstring> argd;
-                                  argd.reserve(args.size());
-        for (auto& item : args)
+        std::vector<std::wstring> argd(1, directory.wstring());
+        for (auto& i : args)
         {
             std::wstring output;
-            util::conv::utf8_to_wstring(item, output);
-
+            util::conv::utf8_to_wstring(i, output);
             argd.push_back(output);
-            argv.push_back((wchar_t*)argd.back().c_str());
         }
+
+        std::vector<wchar_t*> argv;
+        for (const auto& i : argd)
+            argv.push_back((wchar_t*)i.c_str());
+
         PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1);
+        struct _scope {
+            ~_scope() {
+                PySys_SetArgvEx(0, nullptr, 1); // 重置参数
+            }
+        } _clean;
 
 #if OS_WIN
         // 运行脚本
@@ -427,11 +432,6 @@ boost::python::object pyembed::exec_file(
             true,
             nullptr);
 
-        // 重置参数
-        argv.clear();
-        argv.push_back({});
-        PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1);
-
         if (!pyobj)
             throw bp::error_already_set();
         result = bp::object(bp::handle<>(pyobj));
@@ -439,11 +439,6 @@ boost::python::object pyembed::exec_file(
         // 不支持宽字节
         result = bp::exec_file(
            filename.string().c_str(), *__private->_global, *__private->_local);
-
-        // 重置参数
-        argv.clear();
-        argv.push_back({});
-        PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1);
 #endif
 
     }, exception_handler);
