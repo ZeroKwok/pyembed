@@ -134,7 +134,7 @@ public:
     //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
     //!     bool(const pyembed::pyerror& pyerr);
     //!     返回true表示异常已处理，false将打印到错误输出。
-    //! @return 返回计算结果值
+    //! @return 返回值总是None
     PYEMBED_LIB boost::python::object exec(
         const std::string& snippets,
         const std::function<bool(const pyerror&)>& exception_handler = {});
@@ -145,7 +145,7 @@ public:
     //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
     //!     bool(const pyembed::pyerror& pyerr);
     //!     返回true表示异常已处理，false将打印到错误输出。
-    //! @return 返回计算结果值
+    //! @return 返回值总是None
     PYEMBED_LIB boost::python::object exec_file(
         const std::filesystem::path& script,
         const std::vector<std::string>& args = {},
