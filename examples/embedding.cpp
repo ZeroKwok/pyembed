@@ -76,17 +76,17 @@ int main(int argc, char** argv)
     std::string script = (floder / "script.py").string();
 
     // Register the module with the interpreter
-    get_pymebed().append_inittab({
+    get_pyembed().append_inittab({
         {"embedded_hello", PyInit_embedded_hello},
         {"TestCppException", PyInit_TestCppException},
     });
 
     // Initialize the interpreter
-    get_pymebed().init();
+    get_pyembed().init();
 
     // eval
     {
-        auto result = get_pymebed().eval("'abcdefg'.upper()");
+        auto result = get_pyembed().eval("'abcdefg'.upper()");
         std::string value = python::extract<std::string>(result) BOOST_EXTRACT_WORKAROUND;
         BOOST_TEST(value == "ABCDEFG");
     }
@@ -94,13 +94,13 @@ int main(int argc, char** argv)
     // exec
     {
         // Define the derived class in Python.
-        auto result = get_pymebed().exec(
+        auto result = get_pyembed().exec(
             "from embedded_hello import *        \n"
             "class PythonDerived(Base):          \n"
             "    def hello(self):                \n"
             "        return 'Hello from Python!' \n");
 
-        auto PythonDerived = get_pymebed().local()["PythonDerived"];
+        auto PythonDerived = get_pyembed().local()["PythonDerived"];
 
         // Creating and using instances of the C++ class is as easy as always.
         CppDerived cpp;
@@ -114,7 +114,7 @@ int main(int argc, char** argv)
         // Make sure the right 'hello' method is called.
         BOOST_TEST(py.hello() == "Hello from Python!");
 
-        get_pymebed().register_exception_handler(
+        get_pyembed().register_exception_handler(
             [](std::function<void()> f) -> bool 
             {
                 try
@@ -134,7 +134,7 @@ int main(int argc, char** argv)
                 return true;
             });
 
-        result = get_pymebed().exec(
+        result = get_pyembed().exec(
             "from TestCppException import *   \n"
             "cppObj = TestCppException()      \n"
             "cppObj.throwException()          \n"
@@ -143,7 +143,7 @@ int main(int argc, char** argv)
 
     // exec
     {
-        get_pymebed().exec(
+        get_pyembed().exec(
             "hello = open('hello.txt', 'w')\n"
             "hello.write('Hello world!')\n"
             "hello.close()");
@@ -152,15 +152,15 @@ int main(int argc, char** argv)
     // exec_file
     {
         // Run a python script in an empty environment.
-        auto result = get_pymebed().exec_file(script);
+        auto result = get_pyembed().exec_file(script);
 
         // Extract an object the script stored in the local dictionary.
-        BOOST_TEST(python::extract<int>(get_pymebed().local()["number"]) == 42);
+        BOOST_TEST(python::extract<int>(get_pyembed().local()["number"]) == 42);
     }
 
     // exec_test_error
     {
-        auto result = get_pymebed().exec("print(unknown) \n");
+        auto result = get_pyembed().exec("print(unknown) \n");
     }
 
     // Boost.Python doesn't support Py_Finalize yet.

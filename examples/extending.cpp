@@ -46,20 +46,20 @@ int main(int argc, char* argv[])
     std::cout << "Testing embedded python: " << std::endl;
 
     // 注册内建模块
-    get_pymebed().append_inittab({ { "extending", PyInit_extending } });
+    get_pyembed().append_inittab({ { "extending", PyInit_extending } });
 
     // 初始化并以程序当前目录作为解释器的家目录
-    get_pymebed().init();
+    get_pyembed().init();
 
     // 添加搜索目录, test_extending.py内部的import指令需要
     std::filesystem::path script = __FILE__;
     script = script.parent_path() / "scripts";
-    get_pymebed().exec(
+    get_pyembed().exec(
         "import sys\n"
         "sys.path.append('" + script.generic_u8string() + "')");
 
     // 运行脚本
-    get_pymebed().exec_file(script / "test_extending.py", {});
+    get_pyembed().exec_file(script / "test_extending.py", {});
 
     return 0;
 }

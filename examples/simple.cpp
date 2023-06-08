@@ -1,4 +1,4 @@
-// This file is part of the pymebed distribution.
+// This file is part of the pyembed distribution.
 // Copyright (c) 2018-2023 Zero Kwok.
 // 
 // This is free software; you can redistribute it and/or modify it
@@ -25,23 +25,23 @@
 
 // 修改下面的预处理条件，启用重定向标准流的示例
 #if 1
-inline pymebed& my_pymebed() {
-    return get_pymebed();
+inline pyembed& my_pyembed() {
+    return get_pyembed();
 }
 
 #else
 
 // 子类化是为了重写标准流的处理
-class pymebed_ex : public pymebed
+class pyembed_ex : public pyembed
 {
 public:
-    pymebed_ex(const std::type_info& type)
-        : pymebed(type)
+    pyembed_ex(const std::type_info& type)
+        : pyembed(type)
     {}
 
     std::string readline_stdin(int size = -1) override
     {
-        std::string result = "Hello pymebed!\n";
+        std::string result = "Hello pyembed!\n";
         if (size != -1 && result.size() > size)
             result.resize(size);
         return result;
@@ -64,8 +64,8 @@ public:
     }
 };
 
-inline pymebed_ex& my_pymebed() {
-    return get_pymebed<pymebed_ex>();
+inline pyembed_ex& my_pyembed() {
+    return get_pyembed<pyembed_ex>();
 }
 #endif
 
@@ -74,20 +74,20 @@ int main(int argc, char* argv[])
     std::cout << "Testing embedded python: " << std::endl;
 
     // 初始化并以程序当前目录作为解释器的家目录
-    my_pymebed().init();
+    my_pyembed().init();
 
     // 运行表达式 & 标准输出流
-    my_pymebed().exec("print(\"Hello\")\n");
-    my_pymebed().exec("print(\"World\")\n\n");
+    my_pyembed().exec("print(\"Hello\")\n");
+    my_pyembed().exec("print(\"World\")\n\n");
 
     // 抛出Python异常默认实现是输出到标准错误流
-    my_pymebed().exec("Hello\n");
+    my_pyembed().exec("Hello\n");
 
     // 标准输入流
-    my_pymebed().exec("print(input('input:'))\n");
+    my_pyembed().exec("print(input('input:'))\n");
 
     // 中断处理：按 Ctrl+C 中断循环 
-    get_pymebed().exec(
+    get_pyembed().exec(
         "import time\n"
         "for i in range(1000) :\n"
         "   print(i)\n"
@@ -96,12 +96,12 @@ int main(int argc, char* argv[])
     // 运行脚本（包含中文文件名）
     std::filesystem::path script = __FILE__;
     script = script.parent_path() / "scripts";
-    my_pymebed().exec_file(script / L"中文.py", {});
+    my_pyembed().exec_file(script / L"中文.py", {});
 
     // 参数传递、返回值、上下文数据
-    auto result = my_pymebed().exec_file(
+    auto result = my_pyembed().exec_file(
         script / "script_args.py", { "--filename=filename.ext", "-v", "-c" });
-    int number = boost::python::extract<int>(my_pymebed().local()["number"]);
+    int number = boost::python::extract<int>(my_pyembed().local()["number"]);
     std::cout << "number: " << number << std::endl;
 
 #if defined(WIN32) || defined(_WIN32)

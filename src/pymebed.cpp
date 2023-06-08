@@ -1,4 +1,4 @@
-// This file is part of the pymebed distribution.
+// This file is part of the pyembed distribution.
 // Copyright (c) 2018-2023 Zero Kwok.
 // 
 // This is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ enum pipe_type
 };
 
 template<pipe_type>
-class PYMEBED_LIB py_redirector
+class PYEMBED_LIB py_redirector
 {
 public:
     py_redirector()
@@ -81,10 +81,10 @@ typedef py_redirector<pystderr> stderr_redirector;
 
 //////////////////////////////////////////////////////////////////////////
 
-class pymebed_private 
+class pyembed_private 
 {
 public:
-    pymebed_private(pymebed* p)
+    pyembed_private(pyembed* p)
     {
         _public = p;
 
@@ -104,7 +104,7 @@ public:
             });
     }
 
-    ~pymebed_private()
+    ~pyembed_private()
     {
         _stdin.reset();
         _stdout.reset();
@@ -169,7 +169,7 @@ public:
         if (signum == SIGINT)
             PyErr_SetInterrupt();
 
-        signal(signum, &pymebed_private::signal_handler);
+        signal(signum, &pyembed_private::signal_handler);
     }
 
 public:
@@ -179,27 +179,27 @@ public:
     bp::dict   _global;
     bp::dict   _local;
     
-    static pymebed* _public;
+    static pyembed* _public;
     static boost::shared_ptr<stdin_redirector>  _stdin;
     static boost::shared_ptr<stdout_redirector> _stdout;
     static boost::shared_ptr<stderr_redirector> _stderr;
 };
 
-pymebed* pymebed_private::_public = nullptr;
-boost::shared_ptr<stdin_redirector>  pymebed_private::_stdin;
-boost::shared_ptr<stdout_redirector> pymebed_private::_stdout;
-boost::shared_ptr<stderr_redirector> pymebed_private::_stderr;
+pyembed* pyembed_private::_public = nullptr;
+boost::shared_ptr<stdin_redirector>  pyembed_private::_stdin;
+boost::shared_ptr<stdout_redirector> pyembed_private::_stdout;
+boost::shared_ptr<stderr_redirector> pyembed_private::_stderr;
 
 //////////////////////////////////////////////////////////////////////////
 
 boost::shared_ptr<stdin_redirector>  get_stdin(){
-    return pymebed_private::_stdin;
+    return pyembed_private::_stdin;
 }
 boost::shared_ptr<stdout_redirector> get_stdout() {
-    return pymebed_private::_stdout;
+    return pyembed_private::_stdout;
 }
 boost::shared_ptr<stderr_redirector> get_stderr() {
-    return pymebed_private::_stderr;
+    return pyembed_private::_stderr;
 }
 
 BOOST_PYTHON_MODULE(redirector)
@@ -207,19 +207,19 @@ BOOST_PYTHON_MODULE(redirector)
     using namespace boost::python;
 
     class_<stdin_redirector>("stdin",
-        "This class redirects python's standard input to the pymebed.",
+        "This class redirects python's standard input to the pyembed.",
         init<>("initialize the stdin_redirector."))
         .def("__init__", make_constructor(get_stdin), "initialize the redirector.")
         .def("readline", &stdin_redirector::readline, arg("size") = -1, "readline sys.stdin redirection.");
 
     class_<stdout_redirector>("stdout",
-        "This class redirects python's standard output to the pymebed.",
+        "This class redirects python's standard output to the pyembed.",
         init<>("initialize the stdout_redirector."))
         .def("__init__", make_constructor(get_stdout), "initialize the redirector.")
         .def("write", &stdout_redirector::write, "write sys.stdout redirection.");
 
     class_<stderr_redirector>("stderr",
-        "This class redirects python's error output to the pymebed.",
+        "This class redirects python's error output to the pyembed.",
         init<>("initialize the stderr_redirector."))
         .def("__init__", make_constructor(get_stderr), "initialize the redirector.")
         .def("write", &stderr_redirector::write, "write sys.stderr redirection.");
@@ -227,13 +227,13 @@ BOOST_PYTHON_MODULE(redirector)
 
 //////////////////////////////////////////////////////////////////////////
 
-pymebed::pymebed(const std::type_info& type)
+pyembed::pyembed(const std::type_info& type)
 {
-    __private = new pymebed_private(this);
-    __private->_redirect = (type != typeid(pymebed)); // 只有在子类化之后才需要重定向
+    __private = new pyembed_private(this);
+    __private->_redirect = (type != typeid(pyembed)); // 只有在子类化之后才需要重定向
 }
 
-pymebed::~pymebed()
+pyembed::~pyembed()
 {
     // Boost.Python doesn't support Py_Finalize yet, so don't call it!
 
@@ -241,12 +241,12 @@ pymebed::~pymebed()
            __private = nullptr;
 }
 
-pymebed* pymebed::get_ptr()
+pyembed* pyembed::get_ptr()
 {
-    return pymebed_private::_public;
+    return pyembed_private::_public;
 }
 
-void pymebed::init(
+void pyembed::init(
     const std::filesystem::path& pyhome /*= ""*/,
     bool initsigs /*= true*/)
 {
@@ -298,7 +298,7 @@ void pymebed::init(
     }
 }
 
-void pymebed::interrupt()
+void pyembed::interrupt()
 {
     assert(__private->_initsigs);
 
@@ -307,7 +307,7 @@ void pymebed::interrupt()
     PyErr_SetInterrupt();
 }
 
-bool pymebed::append_inittab(
+bool pyembed::append_inittab(
     const char* name, PyObject* (*initfunc)(void))
 {
     // Register the module with the interpreter
@@ -323,7 +323,7 @@ bool pymebed::append_inittab(
     return true;
 }
 
-bool pymebed::append_inittab(const std::vector<pymoudle>& pymoudles)
+bool pyembed::append_inittab(const std::vector<pymoudle>& pymoudles)
 {
     for (const auto& item : pymoudles ) 
     {
@@ -334,7 +334,7 @@ bool pymebed::append_inittab(const std::vector<pymoudle>& pymoudles)
     return true;
 }
 
-void pymebed::register_exception_handler(
+void pyembed::register_exception_handler(
     const std::function<bool(std::function<void()>)>& handler)
 {
     namespace bpy = boost::python::detail;
@@ -345,7 +345,7 @@ void pymebed::register_exception_handler(
         });
 }
 
-boost::python::object pymebed::eval(const std::string& expression)
+boost::python::object pyembed::eval(const std::string& expression)
 {
     boost::python::object result;
     __private->exec_for([&]() {
@@ -356,7 +356,7 @@ boost::python::object pymebed::eval(const std::string& expression)
     return result;
 }
 
-boost::python::object pymebed::exec(const std::string& command)
+boost::python::object pyembed::exec(const std::string& command)
 {
     boost::python::object result;
     __private->exec_for([&]() {
@@ -367,7 +367,7 @@ boost::python::object pymebed::exec(const std::string& command)
     return result;
 }
 
-boost::python::object pymebed::exec_file(
+boost::python::object pyembed::exec_file(
     const std::filesystem::path& script, 
     const std::vector<std::string>& args /*= {}*/)
 {
@@ -427,17 +427,17 @@ boost::python::object pymebed::exec_file(
     return result;
 }
 
-boost::python::dict& pymebed::global()
+boost::python::dict& pyembed::global()
 {
     return __private->_global;
 }
 
-boost::python::dict& pymebed::local()
+boost::python::dict& pyembed::local()
 {
     return __private->_local;
 }
 
-void pymebed::clean()
+void pyembed::clean()
 {
     boost::python::object builtins = __private->_global["__builtins__"];
 
@@ -446,7 +446,7 @@ void pymebed::clean()
     __private->_global["__builtins__"] = builtins;
 }
 
-void pymebed::write_stdout(const std::string& str)
+void pyembed::write_stdout(const std::string& str)
 {
     // 如果派生类没有实现此接口，那么在调试模式下通过异常通知用户，否则通过输出信息。
     const char* msg = "You need to implement the write_stdout() interface.\n";
@@ -456,7 +456,7 @@ void pymebed::write_stdout(const std::string& str)
     std::cout << msg;
 }
 
-void pymebed::write_stderr(const std::string& str)
+void pyembed::write_stderr(const std::string& str)
 {
     const char* msg = "You need to implement the write_stderr() interface.\n";
 #if defined(DEBUG) || defined(_DEBUG)
@@ -465,7 +465,7 @@ void pymebed::write_stderr(const std::string& str)
     std::cerr << msg;
 }
 
-std::string pymebed::readline_stdin(int size /*= -1*/)
+std::string pyembed::readline_stdin(int size /*= -1*/)
 {
     const char* msg = "You need to implement the readline_stdin() interface.\n";
 #if defined(DEBUG) || defined(_DEBUG)

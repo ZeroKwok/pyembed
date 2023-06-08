@@ -1,4 +1,4 @@
-# This file is part of the pymebed distribution.
+# This file is part of the pyembed distribution.
 # Copyright (c) 2018-2023 Zero Kwok.
 # 
 # This is free software; you can redistribute it and/or modify it
@@ -22,11 +22,11 @@
 cmake_policy(SET CMP0074 NEW)
 cmake_minimum_required(VERSION 3.13)
 
-project(pymebed VERSION 0.1.2)
+project(pyembed VERSION 0.1.2)
 
-option(PYMEBED_BUILD_EXAMPLE    "Compile the example" ON)
-option(PYMEBED_STATIC_RUNTIME   "Enable static linking with runtime" OFF)
-option(PYMEBED_BUILD_SHARED_LIB "Build the shared library" ON)
+option(PYEMBED_BUILD_EXAMPLE    "Compile the example" ON)
+option(PYEMBED_STATIC_RUNTIME   "Enable static linking with runtime" OFF)
+option(PYEMBED_BUILD_SHARED_LIB "Build the shared library" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,7 +40,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG          ${CMAKE_SOURCE_DIR}/bin/libs)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE        ${CMAKE_SOURCE_DIR}/bin/libs)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_SOURCE_DIR}/bin/libs)
 
-if(MSVC AND PYMEBED_STATIC_RUNTIME)
+if(MSVC AND PYEMBED_STATIC_RUNTIME)
     foreach(flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
         string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
     endforeach(flag_var)
@@ -77,14 +77,14 @@ file(GLOB SOURCE_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/utility/*.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/utility/*.hpp")
 
-if (PYMEBED_BUILD_SHARED_LIB)
+if (PYEMBED_BUILD_SHARED_LIB)
     # 如果采用动态库方式，则Boost也必须采用动态库，否则
     #   boost::python::detail::exception_handler的静态成员变量可能存在多个实例，导致异常处理失效
     add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${INCLUDE_FILES})
-    target_compile_definitions(${PROJECT_NAME} PRIVATE PYMEBED_SHARED_LIB)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE PYEMBED_SHARED_LIB)
 else()
     add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${INCLUDE_FILES})
-    target_compile_definitions(${PROJECT_NAME} PUBLIC PYMEBED_STATIC_LIB)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC PYEMBED_STATIC_LIB)
 endif()
 
 # pyconfig.h 存在自动连接 pragma comment(lib,"python38.lib")
@@ -129,6 +129,6 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE DESTINATION ./ OPTIONAL)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/README.md DESTINATION ./ OPTIONAL)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/example DESTINATION ./)
 
-if(PYMEBED_BUILD_EXAMPLE)
+if(PYEMBED_BUILD_EXAMPLE)
     add_subdirectory(examples)
 endif()
