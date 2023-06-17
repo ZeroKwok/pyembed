@@ -36,7 +36,6 @@
 
 #include <filesystem>
 #include <boost/python.hpp>
-#include <boost/serialization/singleton.hpp>
 
 //!
 //! 嵌入式Python解释器
@@ -51,11 +50,9 @@ protected:
     PYEMBED_LIB static   pyembed* get_ptr();
 
 public:
-    //!
     //! @brief 用于获得pyembed实例的便捷函数
     //! @note  1. 线程不安全，应当在进入多线程之前获取实例
     //!        2. 由于GCC不支持在友元声明中加入默认模板参数，所以这里修改为静态方法
-    //!
     template<class T = pyembed>
     static T& get() {
         if (T::get_ptr() == nullptr)
