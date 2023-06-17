@@ -23,6 +23,7 @@
 #include <iostream>
 #include <filesystem>
 #include <boost/format.hpp>
+#include <boost/detail/lightweight_test.hpp>
 
 // 修改下面的预处理条件，启用重定向标准输入/输出的示例
 #if 1
@@ -79,13 +80,32 @@ int main(int argc, char* argv[])
     // 初始化并以程序当前目录作为解释器的家目录
     my_pyembed().init();
 
+    // 调试器查看Python对象
+    {
+        bp::str address0 = "6 East Changan Avenue PeKing";
+        bp::str address1 = "NO.70 dong feng dong Rd.Guangzhou";
+
+        bp::list hobby;
+        hobby.append("Coding");
+        hobby.append("Swimming");
+
+        bp::dict personInfo;
+        personInfo["Name"] = "Zero";
+        personInfo["Ages"] = 26;
+        personInfo["Male"] = "Man";
+        personInfo["Hobby"] = hobby;
+        personInfo["Address"] = bp::make_tuple(address0, address1);
+
+        // 在这里下断点, 然后观察personInfo对象的值
+        bp::len(personInfo);
+    }
+
     // 运行表达式 & 标准输出流
-    my_pyembed().exec("print(\"Hello\")\n");
-    my_pyembed().exec("print(\"World\")\n\n");
+    my_pyembed().exec("print('Hello World')");
 
     // 抛出Python异常默认实现是输出到标准错误流，指定异常处理器可以覆写此逻辑
-    my_pyembed().exec("Hello\n");
-    my_pyembed().exec("Hello\n",
+    my_pyembed().exec("Hello");
+    my_pyembed().exec("Hello",
         [](const pyembed::pyerror& pyerr)
         {
             std::string message = bp::extract<std::string>(pyerr.pyexception);
@@ -100,6 +120,19 @@ int main(int argc, char* argv[])
 
             return true; // 返回false表示异常没有被处理，将被打印到标准错误中。
         });
+
+    // 调用Python接口
+    my_pyembed().exec(
+        "def getAddress(name):\n"
+        "   if name == 'jack':\n"
+        "       return '6 East Changan Avenue PeKing'\n"
+        "   return 'NO.70 dong feng dong Rd.Guangzhou'"
+    );
+    auto getAddress = my_pyembed().local()["getAddress"];
+    auto address0 = bp::extract<std::string>(getAddress("jack"))();
+    auto address1 = bp::extract<std::string>(getAddress("null"))();
+    BOOST_TEST(address0 == "6 East Changan Avenue PeKing");
+    BOOST_TEST(address1 == "NO.70 dong feng dong Rd.Guangzhou");
 
     // 标准输入流
     my_pyembed().exec("print(input('input:'))\n");
