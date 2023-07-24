@@ -131,6 +131,7 @@ public:
         // Retrieve the main module's namespace
         _global = std::make_shared<bp::dict>(_main_module->attr("__dict__"));
         _local = std::make_shared<bp::dict>();
+        *_local = *_global;
 
         string_from_python_type();
         string_from_python_base_exception();
@@ -390,17 +391,16 @@ boost::python::object pyembed::exec_file(
     const std::function<bool(const pyerror&)>& exception_handler /*= {} */)
 {
     // 脚本文件获取绝对路径
-    // PySys_SetArgvEx()要求参数argv[0]必须为脚本所在目录
+    // PySys_SetArgvEx()要求参数argv[0]须为执行的脚本文件
     // https://docs.python.org/3/c-api/init.html?highlight=pysys_setargvex#c.PySys_SetArgvEx
     std::error_code ecode;
     std::filesystem::path filename =
         std::filesystem::canonical(script);
-    std::filesystem::path directory = filename.parent_path();
 
     boost::python::object result;
     __private->exec_for([=, &result]()
     {
-        std::vector<std::wstring> argd(1, directory.wstring());
+        std::vector<std::wstring> argd(1, filename.wstring());
         for (auto& i : args)
         {
             std::wstring output;
