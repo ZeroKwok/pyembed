@@ -95,7 +95,7 @@ public:
     //! note 该方法应该在init()前调用。
     PYEMBED_LIB bool append_inittab(const std::vector<pymoudle>& pymoudles);
 
-    //! @brief 注册扩展模块的异常处理器，提供该接口的目的主要用于暴露。
+    //! @brief 注册扩展模块的异常处理器(Python调用C++产生的异常)，提供该接口的目的主要用于暴露。
     //!        boost::python::detail::register_exception_handler()。
     //! @param handler 异常处理函数，它接收一个闭包，并返回一个bool值，其表示是否处理了异常。
     //! @note 1. 该处理函数将被解释器一直持有直到解释器被释放。
@@ -118,7 +118,7 @@ public:
 
     //! @brief 计算给定表达式的值并返回结果值
     //! @param expression Python 表达式(utf-8)
-    //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
+    //! @param exception_handler 异常处理器，解释器触发(python)异常时被调用，签名如下：
     //!     bool(const pyembed::pyerror& pyerr);
     //!     返回true表示异常已处理，false将打印到错误输出。
     //! @return 返回计算结果值
@@ -128,7 +128,7 @@ public:
 
     //! @brief 执行给定的代码（通常是一组表达式）并返回结果
     //! @param snippets Python 代码片段(utf-8)
-    //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
+    //! @param exception_handler 异常处理器，解释器触发(python)异常时被调用，签名如下：
     //!     bool(const pyembed::pyerror& pyerr);
     //!     返回true表示异常已处理，false将打印到错误输出。
     //! @return 返回值总是None
@@ -137,15 +137,24 @@ public:
         const std::function<bool(const pyerror&)>& exception_handler = {});
 
     //! @brief 执行包含在给定文件中的代码并返回结果
-    //! @param script 文件名
+    //! @param script 文件名, 文件不存在则抛出异常(filesystem::filesystem_error)
     //! @param args 执行参数
-    //! @param exception_handler 异常处理器，发生异常时将被调用，签名如下：
+    //! @param exception_handler 异常处理器，解释器触发(python)异常时被调用，签名如下：
     //!     bool(const pyembed::pyerror& pyerr);
     //!     返回true表示异常已处理，false将打印到错误输出。
     //! @return 返回值总是None
     PYEMBED_LIB boost::python::object exec_file(
         const std::filesystem::path& script,
         const std::vector<std::string>& args = {},
+        const std::function<bool(const pyerror&)>& exception_handler = {});
+
+    //! @brief 用于执行可能抛出python异常的代码, 如果触发则通过exception_handler处理
+    //! @param action 闭包
+    //! @param exception_handler 异常处理器，解释器触发(python)异常时被调用，签名如下：
+    //!     bool(const pyembed::pyerror& pyerr);
+    //!     返回true表示异常已处理，false将打印到错误输出。
+    PYEMBED_LIB void exec_for(
+        const std::function<void()>& action,
         const std::function<bool(const pyerror&)>& exception_handler = {});
 
     //! @brief 获得解释器的全局或局部上下文

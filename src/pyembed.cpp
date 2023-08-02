@@ -156,10 +156,17 @@ public:
                 PyErr_Fetch(&exc_type, &exc_value, &exc_traceback);
                 PyErr_NormalizeException(&exc_type, &exc_value, &exc_traceback);
 
+                auto pycast = [](PyObject* type) -> bp::object {
+                    bp::handle<> obj(bp::allow_null(type));
+                    if (obj.get() == nullptr)
+                        return {};
+                    return bp::object(obj);
+                };
+
                 pyembed::pyerror pyerr = {
-                    bp::object(bp::handle<>(bp::allow_null(exc_type))),
-                    bp::object(bp::handle<>(bp::allow_null(exc_value))),
-                    bp::object(bp::handle<>(bp::allow_null(exc_traceback))),
+                    pycast(exc_type),
+                    pycast(exc_value),
+                    pycast(exc_traceback),
                 };
 
                 if (e(pyerr))
@@ -446,6 +453,13 @@ boost::python::object pyembed::exec_file(
     return result;
 }
 
+void pyembed::exec_for(
+    const std::function<void()>& action,
+    const std::function<bool(const pyerror&)>& exception_handler /*= {} */)
+{
+    __private->exec_for(action, exception_handler);
+}
+
 boost::python::dict& pyembed::global()
 {
     return *__private->_global;
@@ -463,6 +477,7 @@ void pyembed::clean()
     local().clear();
     global().clear();
     global()["__builtins__"] = builtins;
+    local() = global();
 }
 
 void pyembed::write_stdout(const std::string& str)
