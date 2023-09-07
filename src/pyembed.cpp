@@ -281,7 +281,10 @@ void pyembed::init(
 
     // https://docs.python.org/zh-cn/3/c-api/init.html#c.Py_SetPythonHome
     if (!pyhome.empty())
-        Py_SetPythonHome(pyhome.wstring().c_str());
+    {
+        static std::wstring home = pyhome.wstring(); 
+        Py_SetPythonHome(&home[0]); // In Python 3.6, it must be of the wchar_t*
+    }
 
     // Set initsigs to 0 to skips initialization registration of signal handlers.
     // It is a fatal error if the initialization fails.
