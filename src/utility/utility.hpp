@@ -25,6 +25,10 @@
 #include "config.h"
 #include "utility.hpp"
 
+#ifndef util
+#   define util __util
+#endif
+
 #if OS_WIN
 #   include "string_conv_win.hpp"
 #else

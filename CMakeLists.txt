@@ -148,3 +148,10 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/examples DESTINATION ./)
 if(PYEMBED_BUILD_EXAMPLE)
     add_subdirectory(examples)
 endif()
+
+if (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/build/templates.in" 
+                   "${CMAKE_CURRENT_SOURCE_DIR}/build/build_dynamic_dynamic_x86_vc14.2.py")
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/build/templates.in" 
+                   "${CMAKE_CURRENT_SOURCE_DIR}/build/build_static_dynamic_x86_vc14.2.py")
+endif()
