@@ -6,5 +6,8 @@ sys.path.append('${CMAKE_SOURCE_DIR}')
 import FTBuildSettings as builder
 
 MakeOptions1 = builder.SetProject('${PROJECT_NAME}', '${PROJECT_VERSION}', __file__)
+
+MakeOptions1['CMAKE_PREFIX_PATH:STRING'] += ";G:/local/python/3.6.8"
+
 MakeOptions2 = { }
 builder.Build(MakeOptions1, MakeOptions2)
