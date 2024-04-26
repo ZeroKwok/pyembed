@@ -401,8 +401,6 @@ boost::python::object pyembed::exec_file(
     const std::function<bool(const pyerror&)>& exception_handler /*= {} */)
 {
     // 脚本文件获取绝对路径
-    // PySys_SetArgvEx()要求参数argv[0]须为执行的脚本文件
-    // https://docs.python.org/3/c-api/init.html?highlight=pysys_setargvex#c.PySys_SetArgvEx
     std::error_code ecode;
     std::filesystem::path filename =
         std::filesystem::canonical(script);
@@ -422,10 +420,19 @@ boost::python::object pyembed::exec_file(
         for (const auto& i : argd)
             argv.push_back((wchar_t*)i.c_str());
 
+        // PySys_SetArgvEx()要求参数argv[0]须为执行的脚本文件
+        // https://docs.python.org/3/c-api/init.html?highlight=pysys_setargvex#c.PySys_SetArgvEx
+        // Set sys.argv based on argc and argv. 
+        // These parameters are similar to those passed to the program's main() 
+        // function with the difference that the first entry should refer to 
+        // the script file to be executed rather than the executable hosting 
+        // the Python interpreter. If there isn't a script that will be run, 
+        // the first entry in argv can be an empty string. 
         PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1);
         struct _scope {
             ~_scope() {
-                PySys_SetArgvEx(0, nullptr, 1); // 重置参数
+                std::vector<wchar_t*> argv(1, L"");
+                PySys_SetArgvEx(argv.size(), (wchar_t**)&argv[0], 1); // 重置参数
             }
         } _clean;
 
