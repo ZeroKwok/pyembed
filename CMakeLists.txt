@@ -94,12 +94,15 @@ else()
     target_compile_definitions(${PROJECT_NAME} PUBLIC PYEMBED_STATIC_LIB)
 endif()
 
-# pyconfig.h 存在自动连接 pragma comment(lib,"python38.lib")
 target_include_directories(${PROJECT_NAME} PUBLIC ${Python3_INCLUDE_DIRS})
 target_link_directories(${PROJECT_NAME} PUBLIC ${Python3_LIBRARY_DIRS})
 
-# 不能连接CMake目标, 否则将导致: 
-#   Assertion failed: !PyErr_Occurred(), file D:\a\1\s\Objects\typeobject.c, line 3129
+# 连接CMake目标出现: 
+#   3.8 Assertion failed: !PyErr_Occurred(), file D:\a\1\s\Objects\typeobject.c, line 3129
+#   3.6 Assertion failed: (op->_ob_prev == NULL) == (op->_ob_next == NULL), file g:\a\3\s\objects\object.c, line 78
+# 原因是 pyconfig.h 存在自动连接 pragma comment(lib, "python3x.lib")
+# 这将在库文件 libboost_python36-vc141-mt-gd-x32-1_69.lib 中, 产生一条连接器选项: /DEFAULTLIB:"python3x.lib"
+# 解决方案: pyconfig.h注释pragma comment(lib, ...) 相关行, 再编译boost.python
 #target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python)
 
 if(UNIX)
